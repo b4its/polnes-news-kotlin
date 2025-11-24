@@ -1,0 +1,265 @@
+package com.mxlkt.newspolnes.ui.admin
+
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import coil.compose.rememberAsyncImagePainter
+import com.mxlkt.newspolnes.components.CommonTopBar
+import com.mxlkt.newspolnes.components.DeleteConfirmationDialog
+import com.mxlkt.newspolnes.model.DummyData
+import com.mxlkt.newspolnes.model.Category
+import com.mxlkt.newspolnes.model.UserRole
+import com.mxlkt.newspolnes.ui.theme.PolnesGreen
+import com.mxlkt.newspolnes.ui.theme.NewsPolnesTheme
+import com.mxlkt.newspolnes.ui.theme.White
+import com.mxlkt.newspolnes.utils.SessionManager
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddANewCategoryScreen(
+    categoryId: Int? = null,
+    onBackClick: () -> Unit,
+    onSubmitClick: () -> Unit,
+    onDeleteClick: () -> Unit = {}
+) {
+    // 🟢 GUARD: Cek Hak Akses
+    val currentUserRole = SessionManager.currentUser?.role
+
+    if (currentUserRole != UserRole.ADMIN) {
+        // Tampilkan pesan akses terbatas dan keluar dari Composable
+        Scaffold(topBar = { CommonTopBar(title = "Access Denied", onBack = onBackClick) }) {
+            Box(modifier = Modifier.fillMaxSize().padding(it), contentAlignment = Alignment.Center) {
+                Text("Error: Hanya Administrator yang dapat mengelola kategori.", color = MaterialTheme.colorScheme.error)
+            }
+        }
+        return
+    }
+
+    // --- Logic Form (Hanya dijalankan jika user adalah Admin) ---
+    val isEditMode = categoryId != null
+    val categoryToEdit: Category? = if (isEditMode) {
+        DummyData.categoryList.find { it.id == categoryId }
+    } else {
+        null
+    }
+
+    var title by remember { mutableStateOf(categoryToEdit?.name ?: "") }
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        selectedImageUri = uri
+    }
+
+    val topBarColors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+        containerColor = MaterialTheme.colorScheme.primary,
+        titleContentColor = MaterialTheme.colorScheme.onPrimary,
+        navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
+        actionIconContentColor = MaterialTheme.colorScheme.onPrimary
+    )
+
+    // Dialog ini tetap ada, tapi hanya dipicu jika tombol delete di NavGraph/Body diaktifkan
+    DeleteConfirmationDialog(
+        showDialog = showDeleteDialog,
+        onDismiss = { showDeleteDialog = false },
+        onConfirm = { onDeleteClick() }
+    )
+
+    Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
+        topBar = {
+            CommonTopBar(
+                title = if (isEditMode) "Edit Category" else "Add New Category",
+                onBack = onBackClick,
+                colors = topBarColors,
+                windowInsets = WindowInsets(0.dp),
+                // 🔴 ACTIONS: Dikosongkan (Tombol Hapus di TopBar hilang di Mode Edit)
+                actions = {
+                    /* Dihapus sesuai permintaan user */
+                }
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { onSubmitClick() },
+                containerColor = PolnesGreen,
+                contentColor = White
+            ) {
+                Icon(Icons.Default.Check, contentDescription = "Save Category")
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    top = innerPadding.calculateTopPadding(),
+                    bottom = innerPadding.calculateBottomPadding()
+                )
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Top
+        ) {
+            Spacer(modifier = Modifier.height(2.dp))
+
+            // --- INPUT 1: TITLE ---
+            Text(
+                text = "Category Title",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                placeholder = { Text("Enter category name") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // --- INPUT 2: IMAGE PICKER ---
+            Text(
+                text = "Category Image",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(3f / 2f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .border(
+                        width = 1.dp,
+                        color = Color.Gray.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .clickable { launcher.launch("image/*") }
+            ) {
+                if (selectedImageUri != null) {
+                    Image(
+                        painter = rememberAsyncImagePainter(selectedImageUri),
+                        contentDescription = "Selected Image",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.3f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Tap to change", color = Color.White, style = MaterialTheme.typography.labelMedium)
+                    }
+                } else if (isEditMode && categoryToEdit != null) {
+                    // Tampilkan Gambar Lama dari DummyData
+                    Image(
+                        painter = painterResource(id = categoryToEdit.imageRes),
+                        contentDescription = "Current Image",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.3f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Tap to change", color = Color.White, style = MaterialTheme.typography.labelMedium)
+                    }
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.AddPhotoAlternate,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Tap to upload image",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "* Recommended ratio 3:2 for best display.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray
+            )
+
+            // 💡 Catatan: Jika ingin tombol Hapus muncul di bagian bawah form,
+            // kamu bisa menambahkannya di sini dan memanggil showDeleteDialog = true
+            // Button(onClick = { showDeleteDialog = true }, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) { ... }
+
+            Spacer(modifier = Modifier.height(80.dp))
+        }
+    }
+}
+
+// --- PREVIEW ADD MODE ---
+@Preview(name = "Add Mode", showBackground = true)
+@Composable
+private fun AddCategoryPreview() {
+    NewsPolnesTheme {
+        AddANewCategoryScreen(
+            categoryId = null,
+            onBackClick = {},
+            onSubmitClick = {}
+        )
+    }
+}
+
+// --- PREVIEW EDIT MODE ---
+@Preview(name = "Edit Mode", showBackground = true)
+@Composable
+private fun EditCategoryPreview() {
+    NewsPolnesTheme {
+        // Menggunakan ID 1 dari DummyData (Teknologi)
+        AddANewCategoryScreen(
+            categoryId = 1,
+            onBackClick = {},
+            onSubmitClick = {},
+            onDeleteClick = {}
+        )
+    }
+}
