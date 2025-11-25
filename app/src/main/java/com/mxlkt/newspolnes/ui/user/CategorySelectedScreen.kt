@@ -11,7 +11,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import com.mxlkt.newspolnes.components.CommonTopBar
 import com.mxlkt.newspolnes.components.NewsCard
-import com.mxlkt.newspolnes.model.DummyData
+import com.mxlkt.newspolnes.model.StoreData
 import com.mxlkt.newspolnes.ui.theme.NewsPolnesTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -22,13 +22,13 @@ fun CategorySelectedScreen(
     onNewsClick: (Int) -> Unit // Untuk navigasi ke NewsDetail
 ) {
     // 1. Cari ID Kategori
-    val category = DummyData.categoryList.find { it.name == categoryName }
+    val category = StoreData.categoryList.find { it.name == categoryName }
     val categoryId = category?.id ?: 0
 
     // 2. Filter Berita berdasarkan ID Kategori
     // Jika ID tidak valid (0), tampilkan semua berita (atau array kosong)
     val filteredNewsList = if (categoryId > 0) {
-        DummyData.newsList.filter { it.categoryId == categoryId }
+        StoreData.newsList.filter { it.categoryId == categoryId }
     } else {
         emptyList()
     }

@@ -19,49 +19,71 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Help
+// Tambahkan ikon Logout jika belum ada
+import androidx.compose.material.icons.outlined.Logout
 import androidx.compose.ui.draw.shadow
+
 /**
  * Composable reusable untuk satu baris item di halaman Settings.
- * Dibuat agar terlihat seperti Card tapi sebenarnya Box yang bisa diklik.
  */
 @Composable
 fun SettingsButton(
     modifier: Modifier = Modifier,
     text: String,
     icon: ImageVector,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    // Parameter baru untuk mengubah warna konten (Teks dan Ikon).
+    // Nilai default-nya adalah warna onSurface agar teks normal.
+    contentColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
-    // Kita pakai Box sebagai container utama agar bisa
-    // menerapkan .clickable di seluruh area.
+    // Tentukan warna latar belakang ikon dan warna tint ikon berdasarkan contentColor.
+    val isErrorState = contentColor == MaterialTheme.colorScheme.error
+
+    // 1. Tentukan warna Ikon di dalam lingkaran
+    val iconTint = if (isErrorState) {
+        contentColor // Jika error, ikon berwarna merah (error color)
+    } else {
+        Color.White // Default-nya, ikon berwarna putih
+    }
+
+    // 2. Tentukan warna Latar Belakang Lingkaran Ikon
+    val iconBgColor = if (isErrorState) {
+        // Jika error, gunakan warna errorContainer (lebih muda)
+        MaterialTheme.colorScheme.errorContainer
+    } else {
+        // Warna Hijau Utama (Default)
+        Color(0xFF038900)
+    }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
-            .shadow( // <-- TAMBAHKAN SHADOW DI SINI
-                elevation = 4.dp, // Sesuaikan ketebalan shadow
-                shape = MaterialTheme.shapes.medium // Bentuk shadow harus SAMA dgn clip
+            .shadow(
+                elevation = 4.dp,
+                shape = MaterialTheme.shapes.medium
             )
-            .clip(MaterialTheme.shapes.medium) // Bentuknya rounded (seperti Card)
-            .clickable { onClick() } // Efek ripple akan menyebar di seluruh Box
-            .background(MaterialTheme.colorScheme.surface) // Warna background (seperti Card)
+            .clip(MaterialTheme.shapes.medium)
+            .clickable { onClick() }
+            .background(MaterialTheme.colorScheme.surface)
     ) {
         // Row untuk susun Ikon (kiri) dan Teks (kanan)
         Row(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Kiri: Ikon dengan background lingkaran hijau
+            // Kiri: Ikon dengan background lingkaran
             Box(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF038900)), // Warna hijau utama
+                    .background(iconBgColor), // Menggunakan warna latar belakang yang ditentukan
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
-                    contentDescription = text, // Deskripsi = teks tombolnya
-                    tint = Color.White // Ikonnya dibuat putih agar kontras
+                    contentDescription = text,
+                    tint = iconTint // Menggunakan warna ikon yang ditentukan
                 )
             }
 
@@ -72,18 +94,33 @@ fun SettingsButton(
                 text = text,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.onSurface
+                // Teks menggunakan contentColor yang dioper
+                color = contentColor
             )
         }
     }
 }
 
-@Preview(showBackground = true)
+// --- PREVIEW ---
+
+@Preview(showBackground = true, name = "Tombol Normal")
 @Composable
-private fun SettingsButtonPreview() {
+private fun SettingsButtonNormalPreview() {
     SettingsButton(
         text = "Help and Feedback",
         icon = Icons.Outlined.Help,
         onClick = {}
+    )
+}
+
+@Preview(showBackground = true, name = "Tombol Logout (Error State)")
+@Composable
+private fun SettingsButtonLogoutPreview() {
+    // Tombol Logout menggunakan error state
+    SettingsButton(
+        text = "Logout",
+        icon = Icons.Outlined.Logout,
+        onClick = {},
+        contentColor = MaterialTheme.colorScheme.error // Menggunakan warna error
     )
 }

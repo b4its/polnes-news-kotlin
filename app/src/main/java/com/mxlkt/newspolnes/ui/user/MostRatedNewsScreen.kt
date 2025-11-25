@@ -11,7 +11,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.mxlkt.newspolnes.components.CommonTopBar
 import com.mxlkt.newspolnes.components.NewsCard
-import com.mxlkt.newspolnes.model.DummyData
+import com.mxlkt.newspolnes.model.StoreData
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -21,9 +21,9 @@ fun MostRatedNewsScreen(
 ) {
     // 🟢 LOGIKA SORTING BERDASARKAN RATING TERTINGGI
     val sortedNews = remember {
-        DummyData.newsList.sortedByDescending { news ->
+        StoreData.newsList.sortedByDescending { news ->
             // 1. Ambil semua komentar untuk berita ini
-            val relatedComments = DummyData.commentList.filter { it.newsId == news.id }
+            val relatedComments = StoreData.commentList.filter { it.newsId == news.id }
 
             // 2. Hitung rata-rata rating
             if (relatedComments.isNotEmpty()) {

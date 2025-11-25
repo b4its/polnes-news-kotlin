@@ -22,17 +22,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import com.mxlkt.newspolnes.components.CommonTopBar
-import com.mxlkt.newspolnes.model.DummyData
+import com.mxlkt.newspolnes.model.StoreData
 import com.mxlkt.newspolnes.model.News
 import com.mxlkt.newspolnes.ui.theme.PolnesGreen
 import com.mxlkt.newspolnes.ui.theme.NewsPolnesTheme
 import com.mxlkt.newspolnes.ui.theme.White
-// 🟢 Import SessionManager
-import com.mxlkt.newspolnes.utils.SessionManager
+import com.mxlkt.newspolnes.view.AuthViewModel
+import com.mxlkt.newspolnes.model.UserRole
+
+// Hapus import yang tidak diperlukan
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,24 +44,52 @@ fun AddANewArticleScreen(
     articleId: Int?,
     onBackClick: () -> Unit,
     onSubmitClick: () -> Unit,
+    authViewModel: AuthViewModel = viewModel()
 ) {
-    // 🟢 Ambil ID Penulis (Author ID) dari Session Manager
-    val currentAuthorId = SessionManager.currentUser?.id
+    // � Ambil ID dan Role Pengguna secara reaktif dari ViewModel
+    val currentAuthorId by authViewModel.userId.collectAsState(initial = null)
+    val currentUserRoleString by authViewModel.userRole.collectAsState(initial = null)
 
-    // 🟢 GUARD: Jika user belum login, tampilkan pesan error
-    if (currentAuthorId == null) {
-        Scaffold(topBar = { CommonTopBar(title = "Error", onBack = onBackClick) }) {
-            Box(modifier = Modifier.fillMaxSize().padding(it), contentAlignment = Alignment.Center) {
-                Text("Error: Anda harus login sebagai Editor untuk membuat artikel.")
+    val currentUserRole = remember(currentUserRoleString) {
+        try {
+            currentUserRoleString?.let { UserRole.valueOf(it) }
+        } catch (e: IllegalArgumentException) {
+            null
+        }
+    }
+
+    // � GUARD: Cek apakah user sudah login DAN role-nya EDITOR/ADMIN
+    val isAuthorized = currentAuthorId != null &&
+            (currentUserRole == UserRole.EDITOR || currentUserRole == UserRole.ADMIN)
+
+    if (!isAuthorized) {
+        // ❌ Hentikan eksekusi di sini dan tampilkan pesan error
+        Scaffold(topBar = { CommonTopBar(title = "Access Denied", onBack = onBackClick) }) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(it),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "Error: Anda harus login sebagai Editor/Admin untuk membuat artikel.",
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(16.dp),
+                    textAlign = TextAlign.Center // � PERBAIKAN: Gunakan TextAlign.Center
+                )
             }
         }
         return
     }
 
-    // --- Data Logic ---
+    // --- Data Logic (Hanya dijalankan jika user terautentikasi) ---
     val isEditMode = articleId != null
-    // Gunakan find saja, karena kita tahu currentUser pasti ada di sini
-    val articleToEdit: News? = if (isEditMode) { DummyData.newsList.find { it.id == articleId } } else { null }
+
+    val articleToEdit: News? = if (isEditMode) {
+        StoreData.newsList.find { it.id == articleId }
+    } else {
+        null
+    }
 
     // State Form
     var title by remember { mutableStateOf(articleToEdit?.title ?: "") }
@@ -72,9 +104,9 @@ fun AddANewArticleScreen(
 
     // State Category
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
-    val initialCategory = DummyData.categoryList.find { it.id == articleToEdit?.categoryId }
+    val initialCategory = StoreData.categoryList.find { it.id == articleToEdit?.categoryId }
     var selectedCategory by remember { mutableStateOf(initialCategory) }
-    val categories = DummyData.categoryList
+    val categories = StoreData.categoryList
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -87,7 +119,6 @@ fun AddANewArticleScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                // 💡 Saat onSubmitClick dipanggil, kita tahu authorId-nya adalah currentAuthorId
                 onClick = { onSubmitClick() },
                 containerColor = PolnesGreen,
                 contentColor = White
@@ -141,7 +172,7 @@ fun AddANewArticleScreen(
                 } else if (isEditMode && articleToEdit != null) {
                     painterResource(id = articleToEdit.imageRes)
                 } else {
-                    null // Placeholder case
+                    null
                 }
 
                 if (imagePainter != null) {
@@ -158,7 +189,7 @@ fun AddANewArticleScreen(
                         Text("Tap to change", color = Color.White, style = MaterialTheme.typography.labelMedium)
                     }
                 } else {
-                    // 3. Kosong (Placeholder)
+                    // Placeholder
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
                             imageVector = Icons.Default.AddPhotoAlternate,
@@ -228,7 +259,9 @@ fun AddANewArticleScreen(
     }
 }
 
-// --- Preview ---
+// � PERBAIKAN: Fungsi Preview harus berada di luar Composable utama (TOP-LEVEL DECLARATION)
+// --------------------------------------------------------------------------------------
+
 @Preview(name = "Add Mode", showBackground = true)
 @Composable
 fun AddArticleScreenPreview() {

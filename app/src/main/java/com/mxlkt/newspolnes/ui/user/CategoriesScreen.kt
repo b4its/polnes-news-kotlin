@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
 import com.mxlkt.newspolnes.components.CategoryCard
 import com.mxlkt.newspolnes.components.TitleOnlyTopAppBar
 import com.mxlkt.newspolnes.components.UserBottomNav
-import com.mxlkt.newspolnes.model.DummyData
+import com.mxlkt.newspolnes.model.StoreData
 
 /**
  * Layar yang menampilkan daftar semua kategori berita.
@@ -24,7 +24,7 @@ import com.mxlkt.newspolnes.model.DummyData
 fun CategoriesScreen(
     onCategoryClick: (String) -> Unit
 ) {
-    val categories = DummyData.categoryList
+    val categories = StoreData.categoryList
 
     // Gunakan LazyColumn untuk menampilkan daftar kategori
     // secara vertikal (satu item per baris).

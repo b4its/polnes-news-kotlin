@@ -11,7 +11,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.mxlkt.newspolnes.components.CommonTopBar
 import com.mxlkt.newspolnes.components.NewsCard
-import com.mxlkt.newspolnes.model.DummyData
+import com.mxlkt.newspolnes.model.StoreData
 import com.mxlkt.newspolnes.model.News
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -22,7 +22,7 @@ fun RecentNewsScreen(
 ) {
     // Gunakan 'remember' agar sorting hanya dijalankan sekali
     val sortedNews = remember {
-        DummyData.newsList.sortedWith(
+        StoreData.newsList.sortedWith(
             compareByDescending<News> { it.date } // Sortir utama: tanggal terbaru
                 .thenByDescending { it.id } // Sortir kedua: ID (jika tanggal sama)
         )

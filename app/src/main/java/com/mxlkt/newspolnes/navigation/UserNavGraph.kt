@@ -3,6 +3,7 @@ package com.mxlkt.newspolnes.navigation
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
@@ -24,12 +25,12 @@ import com.mxlkt.newspolnes.components.UserBottomNav
 import com.mxlkt.newspolnes.ui.user.*
 import com.mxlkt.newspolnes.ui.common.PrivacyPolicyScreen
 import com.mxlkt.newspolnes.ui.common.AboutScreen
-import com.mxlkt.newspolnes.utils.SessionManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserNavGraph(
-    rootNavController: NavHostController
+    rootNavController: NavHostController,
+    onLogout: () -> Unit // Parameter Logout
 ) {
     val userNavController = rememberNavController()
     val navBackStackEntry by userNavController.currentBackStackEntryAsState()
@@ -70,7 +71,7 @@ fun UserNavGraph(
         NavHost(
             navController = userNavController,
             startDestination = "Home",
-            modifier = if (showBars) Modifier.padding(innerPadding) else Modifier,
+            modifier = if (showBars) Modifier.padding(innerPadding) else Modifier.fillMaxSize(),
             // Animasi Transisi Halaman
             enterTransition = { slideInHorizontally(initialOffsetX = { 1000 }, animationSpec = tween(300)) },
             exitTransition = { slideOutHorizontally(targetOffsetX = { -1000 }, animationSpec = tween(300)) },
@@ -82,7 +83,7 @@ fun UserNavGraph(
                 HomeScreen(
                     onViewAllRecent = { userNavController.navigate("RecentNews") },
                     onViewAllMostViewed = { userNavController.navigate("MostViewedNews") },
-                    onViewAllMostRated = { userNavController.navigate("MostRatedNews") }, // 🟢 Navigasi Baru
+                    onViewAllMostRated = { userNavController.navigate("MostRatedNews") },
                     onNewsClick = { newsId -> userNavController.navigate("NewsDetail/$newsId") }
                 )
             }
@@ -108,12 +109,7 @@ fun UserNavGraph(
             // 4. SETTINGS
             composable("Settings") {
                 SettingsScreen(
-                    onLogout = {
-                        SessionManager.currentUser = null
-                        rootNavController.navigate("auth_graph") {
-                            popUpTo("user_root") { inclusive = true }
-                        }
-                    },
+                    onLogout = onLogout, // Panggil fungsi onLogout yang diteruskan
                     onPrivacyClick = { userNavController.navigate("PrivacyPolicy") },
                     onAboutClick = { userNavController.navigate("About") }
                 )
@@ -150,7 +146,7 @@ fun UserNavGraph(
                 )
             }
 
-            // 🟢 List Berita: Most Rated (BARU)
+            // List Berita: Most Rated
             composable("MostRatedNews") {
                 MostRatedNewsScreen(
                     onNavigateBack = { userNavController.popBackStack() },

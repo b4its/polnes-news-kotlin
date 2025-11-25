@@ -1,6 +1,8 @@
 package com.mxlkt.newspolnes.ui.admin
 
+import android.os.Build
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -32,7 +34,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.mxlkt.newspolnes.components.DeleteConfirmationDialog
 import com.mxlkt.newspolnes.components.StatusChip
-import com.mxlkt.newspolnes.model.DummyData
+import com.mxlkt.newspolnes.model.StoreData
 import com.mxlkt.newspolnes.model.News
 import com.mxlkt.newspolnes.model.NewsStatus
 import com.mxlkt.newspolnes.ui.theme.NewsPolnesTheme
@@ -40,9 +42,10 @@ import kotlinx.coroutines.launch
 
 // Helper untuk cari nama author
 private fun getAuthorName(authorId: Int): String {
-    return DummyData.userList.find { it.id == authorId }?.name ?: "Unknown Author"
+    return StoreData.userList.find { it.id == authorId }?.name ?: "Unknown Author"
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ManageNewsScreen(
     // 🟢 1. Tambahkan parameter ini agar NavGraph tidak merah
@@ -52,7 +55,7 @@ fun ManageNewsScreen(
     val scope = rememberCoroutineScope()
 
     // 1. Data Source
-    val newsList = remember { mutableStateListOf<News>().apply { addAll(DummyData.newsList) } }
+    val newsList = remember { mutableStateListOf<News>().apply { addAll(StoreData.newsList) } }
 
     // 2. UI State & Pager
     val tabs = listOf("Needs Review", "All News")
@@ -247,6 +250,7 @@ fun ManageNewsScreen(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun AdminNewsItem(
     article: News,
@@ -279,7 +283,7 @@ fun AdminNewsItem(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.DateRange, null, modifier = Modifier.size(14.dp), tint = Color.Gray)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = DummyData.formatDate(article.date), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                        Text(text = StoreData.formatDate(article.date), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -367,7 +371,7 @@ fun ReviewArticleDialog(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(article.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("By $authorName • ${DummyData.formatDate(article.date)}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text("By $authorName • ${StoreData.formatDate(article.date)}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                     Divider(modifier = Modifier.padding(vertical = 16.dp))
                     Text(article.content, style = MaterialTheme.typography.bodyMedium, lineHeight = 24.sp)
                 }
@@ -380,6 +384,7 @@ fun ReviewArticleDialog(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 private fun ManageNewsScreenPreview() {

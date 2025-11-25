@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.foundation.isSystemInDarkTheme
 import com.mxlkt.newspolnes.model.Notification
-import com.mxlkt.newspolnes.model.DummyData
+import com.mxlkt.newspolnes.model.StoreData
 import com.mxlkt.newspolnes.ui.theme.NewsPolnesTheme
 import com.mxlkt.newspolnes.ui.theme.NotifBackgroundDark
 import com.mxlkt.newspolnes.ui.theme.NotifBackgroundLight
@@ -112,7 +112,7 @@ fun NotificationCard(
 @Preview(showBackground = true)
 @Composable
 fun NotificationCardPreview() {
-    val sampleNotification = DummyData.notifications[0]
+    val sampleNotification = StoreData.notifications[0]
     NewsPolnesTheme {
         NotificationCard(
             notification = sampleNotification,

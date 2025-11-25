@@ -1,15 +1,13 @@
 package com.mxlkt.newspolnes.navigation
 
 import android.widget.Toast
-// 🟢 Tambahkan Import Animasi
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.* // � Import ini penting untuk remember dan collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
@@ -21,27 +19,41 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.mxlkt.newspolnes.components.EditorBottomNav
 import com.mxlkt.newspolnes.components.TitleOnlyTopAppBar
-import com.mxlkt.newspolnes.model.User
+import com.mxlkt.newspolnes.model.StoreData // � Tambahkan import untuk StoreData
+import com.mxlkt.newspolnes.model.UserRole // � Tambahkan import untuk UserRole
 import com.mxlkt.newspolnes.ui.editor.EditorDashboardScreen
 import com.mxlkt.newspolnes.ui.editor.EditorSettingsScreen
 import com.mxlkt.newspolnes.ui.editor.YourArticleScreen
 import com.mxlkt.newspolnes.ui.editor.AddANewArticleScreen
 import com.mxlkt.newspolnes.ui.common.PrivacyPolicyScreen
 import com.mxlkt.newspolnes.ui.common.AboutScreen
+import com.mxlkt.newspolnes.utils.SessionManager // � Tambahkan import untuk SessionManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditorNavGraph(
     rootNavController: NavHostController,
-    currentUser: User?,
     onLogout: () -> Unit
 ) {
     val editorNavController = rememberNavController()
     val context = LocalContext.current
 
+    // � LOGIKA PENGAMBILAN DATA SESI (SessionManager)
+    val sessionManager = remember { SessionManager(context) }
+    val loggedInUserId by sessionManager.userId.collectAsState(initial = null)
+
+    // Cari objek User yang sesuai dengan ID
+    val currentUser = remember(loggedInUserId) {
+        loggedInUserId?.let { id ->
+            StoreData.userList.find { it.id == id && it.role == UserRole.EDITOR }
+        }
+    }
+    // ------------------------------------------------
+
     val navBackStackEntry by editorNavController.currentBackStackEntryAsState()
     val fullRoute = navBackStackEntry?.destination?.route
-    val currentRoute = fullRoute?.substringBefore("?") ?: "editor_dashboard"
+    val startDestinationRoute = "editor_dashboard"
+    val currentRoute = fullRoute?.substringBefore("?") ?: startDestinationRoute
 
     val mainRoutes = listOf("editor_dashboard", "editor_articles", "editor_settings")
     val showMainBars = currentRoute in mainRoutes
@@ -72,9 +84,8 @@ fun EditorNavGraph(
 
         NavHost(
             navController = editorNavController,
-            startDestination = "editor_dashboard",
+            startDestination = startDestinationRoute,
             modifier = Modifier.padding(innerPadding),
-            // 🟢 ANIMASI TRANSISI (Sama dengan UserNavGraph)
             enterTransition = { slideInHorizontally(initialOffsetX = { 1000 }, animationSpec = tween(300)) },
             exitTransition = { slideOutHorizontally(targetOffsetX = { -1000 }, animationSpec = tween(300)) },
             popEnterTransition = { slideInHorizontally(initialOffsetX = { -1000 }, animationSpec = tween(300)) },
@@ -82,10 +93,7 @@ fun EditorNavGraph(
         ) {
             // 1. DASHBOARD
             composable("editor_dashboard") {
-                EditorDashboardScreen(
-                    currentRoute = "editor_dashboard",
-                    onNavigate = { /* ... */ }
-                )
+                EditorDashboardScreen()
             }
 
             // 2. YOUR ARTICLES
@@ -97,6 +105,10 @@ fun EditorNavGraph(
             composable("editor_settings") {
                 EditorSettingsScreen(
                     navController = editorNavController,
+                    // � PERBAIKAN: Oper data pengguna yang sudah dikoleksi
+                    userName = currentUser?.name ?: "Editor",
+                    userRole = currentUser?.role?.name ?: UserRole.EDITOR.name, // Gunakan nama role default jika kosong
+
                     onLogout = onLogout,
                     onPrivacyClick = { editorNavController.navigate("PrivacyPolicy") },
                     onAboutClick = { editorNavController.navigate("About") }
@@ -143,6 +155,8 @@ private fun getScreenTitle(route: String): String {
         "editor_dashboard" -> "Dashboard"
         "editor_articles" -> "Your Articles"
         "editor_settings" -> "Settings"
+        "PrivacyPolicy" -> "Privacy Policy"
+        "About" -> "About"
         else -> ""
     }
 }

@@ -15,13 +15,13 @@ import androidx.compose.ui.unit.dp
 import com.mxlkt.newspolnes.components.NotificationCard
 import com.mxlkt.newspolnes.components.TitleOnlyTopAppBar
 import com.mxlkt.newspolnes.components.UserBottomNav
-import com.mxlkt.newspolnes.model.DummyData
+import com.mxlkt.newspolnes.model.StoreData
 
 @Composable
 fun NotificationsScreen(
     onNewsClick: (Int) -> Unit // 🟢 Menerima fungsi navigasi dari NavGraph
 ) {
-    val notifications = DummyData.notifications
+    val notifications = StoreData.notifications
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),

@@ -17,8 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.mxlkt.newspolnes.components.*
-import com.mxlkt.newspolnes.model.DummyData
-// 🟢 1. Import SessionManager
+import com.mxlkt.newspolnes.model.StoreData
 import com.mxlkt.newspolnes.utils.SessionManager
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,20 +26,27 @@ fun NewsDetailScreen(
     onNavigateBack: () -> Unit,
     newsId: Int
 ) {
-    val news = remember(newsId) { DummyData.newsList.find { it.id == newsId } }
-    val author = remember(news?.authorId) { DummyData.userList.find { it.id == news?.authorId } }
-    val comments = remember(newsId) { DummyData.commentList.filter { it.newsId == newsId } }
+    val news = remember(newsId) { StoreData.newsList.find { it.id == newsId } }
+    val author = remember(news?.authorId) { StoreData.userList.find { it.id == news?.authorId } }
+    val comments = remember(newsId) { StoreData.commentList.filter { it.newsId == newsId } }
 
-    // 🟢 2. Ambil User yang sedang Login
-    val currentUser = SessionManager.currentUser
-
-    var userRating by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
+    var userRating by remember { mutableIntStateOf(0) }
 
-    // 🟢 3. Update Logic Kirim
+    // � PERBAIKAN: Mengambil data user yang sedang login menggunakan SessionManager
+    val sessionManager = remember { SessionManager(context) }
+    // Mengumpulkan User ID dari DataStore (Flow -> State)
+    val loggedInUserId by sessionManager.userId.collectAsState(initial = null)
+
+    // Mencari objek User lengkap di StoreData berdasarkan ID yang sedang login
+    val currentUser = remember(loggedInUserId) {
+        loggedInUserId?.let { id -> StoreData.userList.find { it.id == id } }
+    }
+
+    // � Logic Kirim Rating
     fun submitRatingToDatabase() {
         if (currentUser == null) {
-            // Jika entah kenapa user null (misal session habis), suruh login lagi
+            // Jika user ID belum tersedia atau user belum login
             Toast.makeText(context, "Silakan login terlebih dahulu!", Toast.LENGTH_SHORT).show()
             return
         }
@@ -49,6 +55,9 @@ fun NewsDetailScreen(
         val userId = currentUser.id
         val newsIdToSend = newsId
         val ratingValue = userRating
+
+        // � TODO: Tambahkan logic untuk menyimpan rating baru ke StoreData.commentList di sini
+        // Perlu diperhatikan bahwa StoreData.commentList harus berupa MutableList agar bisa dimodifikasi.
 
         // Simulasi Kirim
         Toast.makeText(
@@ -82,7 +91,7 @@ fun NewsDetailScreen(
             modifier = Modifier.fillMaxSize().padding(innerPadding),
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
-            // ... (Bagian Judul, Gambar, Author, Konten TETAP SAMA) ...
+            // Bagian Judul
             item {
                 Text(
                     text = news.title,
@@ -91,6 +100,7 @@ fun NewsDetailScreen(
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
+            // Bagian Gambar
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 Image(
@@ -100,14 +110,17 @@ fun NewsDetailScreen(
                     modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)
                 )
             }
+            // Bagian Author & Tanggal
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 AuthorDateRow(authorName = author?.name ?: "Unknown", date = news.date)
             }
+            // Bagian Konten
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 HtmlText(html = news.content, modifier = Modifier.padding(horizontal = 16.dp))
             }
+            // Bagian Video (jika ada)
             if (news.youtubeVideoId != null) {
                 item {
                     Spacer(modifier = Modifier.height(24.dp))
@@ -123,7 +136,7 @@ fun NewsDetailScreen(
                 }
             }
 
-            // 🟢 BAGIAN INPUT RATING
+            // BAGIAN INPUT RATING
             item {
                 Spacer(modifier = Modifier.height(24.dp))
                 ArticleRatingInput(
@@ -133,6 +146,7 @@ fun NewsDetailScreen(
                 )
             }
 
+            // BAGIAN RINGKASAN RATING
             item {
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(

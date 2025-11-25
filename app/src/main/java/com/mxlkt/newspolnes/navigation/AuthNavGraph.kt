@@ -7,19 +7,64 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mxlkt.newspolnes.auth.LoginScreen
 import com.mxlkt.newspolnes.auth.SignUpScreen
 import com.mxlkt.newspolnes.auth.WelcomeScreen
-import com.mxlkt.newspolnes.model.DummyData
-import com.mxlkt.newspolnes.model.UserRole
-import com.mxlkt.newspolnes.utils.SessionManager
+import com.mxlkt.newspolnes.view.AuthViewModel
+import com.mxlkt.newspolnes.view.AuthState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 
 @Composable
 fun AuthNavGraph(
-    rootNavController: NavHostController
+    rootNavController: NavHostController,
+    authViewModel: AuthViewModel = viewModel()
 ) {
     val authNavController = rememberNavController()
     val context = LocalContext.current
+
+    val authState by authViewModel.authState
+
+    // Logika Navigasi Otomatis setelah Login/Register Sukses
+    LaunchedEffect(authState) {
+        val destination = when (authState) {
+            is AuthState.SuccessLogin -> {
+                val user = (authState as AuthState.SuccessLogin).user
+                when (user.role.name) {
+                    "ADMIN" -> "admin_root"
+                    "EDITOR" -> "editor_root"
+                    "USER" -> "user_root"
+                    else -> null
+                }
+            }
+            is AuthState.SuccessRegister -> {
+                val user = (authState as AuthState.SuccessRegister).user
+                when (user.role.name) {
+                    "ADMIN" -> "admin_root"
+                    "EDITOR" -> "editor_root"
+                    "USER" -> "user_root"
+                    else -> null
+                }
+            }
+            is AuthState.Error -> {
+                // Tampilkan pesan error
+                Toast.makeText(context, (authState as AuthState.Error).message, Toast.LENGTH_LONG).show()
+                authViewModel.resetState()
+                null
+            }
+            else -> null
+        }
+
+        if (destination != null) {
+            rootNavController.navigate(destination) {
+                popUpTo("auth_graph") { inclusive = true }
+            }
+            authViewModel.resetState()
+        }
+    }
+
 
     NavHost(
         navController = authNavController,
@@ -36,45 +81,23 @@ fun AuthNavGraph(
             LoginScreen(
                 rootNavController = rootNavController,
                 authNavController = authNavController,
+                // Gunakan ViewModel untuk memproses otentikasi
                 onLoginSubmitted = { emailInput, passwordInput ->
-
-                    val matchedUser = DummyData.userList.find {
-                        it.email == emailInput && it.password == passwordInput
-                    }
-
-                    if (matchedUser != null) {
-                        SessionManager.currentUser = matchedUser
-
-                        // NAVIGASI HARUS SESUAI DENGAN MAIN ACTIVITY
-                        when (matchedUser.role) {
-                            UserRole.EDITOR -> {
-                                rootNavController.navigate("editor_root") {
-                                    popUpTo("auth_graph") { inclusive = true }
-                                }
-                            }
-                            UserRole.USER -> {
-                                // Pastikan ini "user_root", BUKAN "user_app"
-                                rootNavController.navigate("user_root") {
-                                    popUpTo("auth_graph") { inclusive = true }
-                                }
-                            }
-                            UserRole.ADMIN -> {
-                                rootNavController.navigate("admin_root") {
-                                    popUpTo("auth_graph") { inclusive = true }
-                                }
-                            }
-                        }
-                    } else {
-                        Toast.makeText(context, "Email atau Password salah!", Toast.LENGTH_SHORT).show()
-                    }
+                    authViewModel.login(emailInput, passwordInput)
                 }
             )
         }
 
+
         composable("signup") {
+            // Asumsi: SignUpScreen telah diubah untuk menggunakan AuthViewModel untuk register
             SignUpScreen(
                 rootNavController = rootNavController,
                 authNavController = authNavController
+                // Jika SignUpScreen memiliki onSignUpSubmitted, panggil:
+//                 onSignUpSubmitted = { name, email, password ->
+//                     authViewModel.register(name, email, password)
+//                 }
             )
         }
     }

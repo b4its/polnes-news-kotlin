@@ -29,7 +29,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import com.mxlkt.newspolnes.components.CommonTopBar
-import com.mxlkt.newspolnes.model.DummyData
+import com.mxlkt.newspolnes.model.StoreData
 import com.mxlkt.newspolnes.model.News
 import com.mxlkt.newspolnes.ui.theme.PolnesGreen
 import com.mxlkt.newspolnes.ui.theme.NewsPolnesTheme
@@ -45,7 +45,7 @@ fun AdminEditArticleScreen(
     val context = LocalContext.current
 
     // --- 1. Ambil Data Artikel Lama ---
-    val articleToEdit: News? = remember { DummyData.newsList.find { it.id == articleId } }
+    val articleToEdit: News? = remember { StoreData.newsList.find { it.id == articleId } }
 
     // --- 2. Form State (Diisi data lama) ---
     var title by remember { mutableStateOf(articleToEdit?.title ?: "") }
@@ -60,9 +60,9 @@ fun AdminEditArticleScreen(
 
     // Category State
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
-    val initialCategory = DummyData.categoryList.find { it.id == articleToEdit?.categoryId }
+    val initialCategory = StoreData.categoryList.find { it.id == articleToEdit?.categoryId }
     var selectedCategory by remember { mutableStateOf(initialCategory) }
-    val categories = DummyData.categoryList
+    val categories = StoreData.categoryList
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),

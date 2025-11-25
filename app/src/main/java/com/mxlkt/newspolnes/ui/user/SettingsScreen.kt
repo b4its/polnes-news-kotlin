@@ -17,21 +17,30 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel // Diperlukan untuk viewModel()
+import androidx.compose.runtime.collectAsState // Diperlukan untuk collectAsState
+import androidx.compose.runtime.getValue // Diperlukan untuk by getValue
 import com.mxlkt.newspolnes.components.AccountInfoCard
 import com.mxlkt.newspolnes.components.SettingsButton
 import com.mxlkt.newspolnes.components.TitleOnlyTopAppBar
 import com.mxlkt.newspolnes.components.UserBottomNav
-// import com.mxlkt.newspolnes.model.DummyData // 🔴 Hapus ini (tidak dipakai lagi)
-import com.mxlkt.newspolnes.utils.SessionManager // 🟢 Import SessionManager
+import com.mxlkt.newspolnes.view.AuthViewModel // Diperlukan untuk akses data pengguna
+
+// Hapus import com.mxlkt.newspolnes.utils.SessionManager
 
 @Composable
 fun SettingsScreen(
     onLogout: () -> Unit,
     onPrivacyClick: () -> Unit,
-    onAboutClick: () -> Unit
+    onAboutClick: () -> Unit,
+    authViewModel: AuthViewModel = viewModel() // � Injeksi AuthViewModel
 ) {
-    // 🟢 REVISI: Ambil data user yang sedang LOGIN dari SessionManager
-    val currentUser = SessionManager.currentUser
+    // � REVISI: Ambil data user yang sedang LOGIN dari AuthViewModel (Flow/DataStore)
+    val currentUserName by authViewModel.userName.collectAsState(initial = "Guest User")
+    val currentUserRoleString by authViewModel.userRole.collectAsState(initial = "GUEST")
+
+    // Format Role
+    val displayRole = currentUserRoleString?.lowercase()?.replaceFirstChar { char -> char.uppercase() }
 
     Column(
         modifier = Modifier
@@ -48,12 +57,10 @@ fun SettingsScreen(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
 
-        // Menampilkan data user asli
+        // Menampilkan data user reaktif
         AccountInfoCard(
-            fullName = currentUser?.name ?: "Guest User", // Tampil Guest jika null
-            role = currentUser?.role?.name?.let {
-                it.lowercase().replaceFirstChar { char -> char.uppercase() }
-            } ?: "Guest"
+            fullName = currentUserName ?: "Guest User",
+            role = displayRole.toString()
         )
 
         Spacer(modifier = Modifier.height(24.dp))

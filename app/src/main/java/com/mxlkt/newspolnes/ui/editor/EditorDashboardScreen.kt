@@ -23,26 +23,32 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel // Import ViewModel
 import com.mxlkt.newspolnes.components.AccountInfoCard
-import com.mxlkt.newspolnes.model.DummyData
+import com.mxlkt.newspolnes.model.StoreData
 import com.mxlkt.newspolnes.model.NewsStatus
 import com.mxlkt.newspolnes.ui.theme.*
-// 🟢 Import SessionManager
-import com.mxlkt.newspolnes.utils.SessionManager
+import com.mxlkt.newspolnes.view.AuthViewModel // Import AuthViewModel
+import androidx.compose.runtime.collectAsState // Import collectAsState
+import androidx.compose.runtime.getValue // Import by getValue
 
 @Composable
 fun EditorDashboardScreen(
-    // 🟢 Parameter editorId SUDAH DIHAPUS
-    currentRoute: String,
-    onNavigate: (String) -> Unit
+    // � Hapus parameter yang tidak perlu. Gunakan AuthViewModel.
+    authViewModel: AuthViewModel = viewModel()
 ) {
-    // 🟢 1. Ambil Data Editor dari SessionManager
-    val currentUser = SessionManager.currentUser
+    // � 1. Ambil Data Editor dari AuthViewModel (Flow/DataStore)
+    val currentUserId by authViewModel.userId.collectAsState(initial = null)
+    val currentUserName by authViewModel.userName.collectAsState(initial = "Editor")
 
-    // 🟢 2. Filter Berita Milik Editor Tersebut
-    // Menggunakan remember(currentUser) agar data refresh jika user berubah
-    val myArticles = remember(currentUser) {
-        DummyData.newsList.filter { it.authorId == currentUser?.id }
+    // � 2. Filter Berita Milik Editor Tersebut berdasarkan ID
+    // Menggunakan remember(currentUserId) agar data refresh jika user berubah
+    val myArticles = remember(currentUserId) {
+        if (currentUserId != null) {
+            StoreData.newsList.filter { it.authorId == currentUserId }
+        } else {
+            emptyList()
+        }
     }
 
     // --- 3. Hitung Statistik ---
@@ -54,9 +60,9 @@ fun EditorDashboardScreen(
         it.status == NewsStatus.PENDING_REVIEW || it.status == NewsStatus.PENDING_UPDATE
     }
 
-    // Hitung Rating Rata-rata (Dari tabel comment yang newsId-nya milik editor ini)
+    // Hitung Rating Rata-rata
     val ratings = remember(myArticles) {
-        DummyData.commentList.filter { comment ->
+        StoreData.commentList.filter { comment ->
             myArticles.any { it.id == comment.newsId }
         }.map { it.rating }
     }
@@ -85,7 +91,8 @@ fun EditorDashboardScreen(
 
         // 1. Header Akun
         AccountInfoCard(
-            fullName = currentUser?.name ?: "Editor",
+            // Gunakan currentUserName yang diambil dari DataStore
+            fullName = currentUserName ?: "Editor",
             role = "Editor",
             modifier = Modifier.fillMaxWidth()
         )
@@ -128,14 +135,14 @@ fun EditorDashboardScreen(
                     modifier = Modifier.weight(1f),
                     label = "Published",
                     value = approvedCount.toString(),
-                    containerColor = StatusPublishedBg, // Pastikan warna ini ada di Theme atau ganti Color.Green
+                    containerColor = StatusPublishedBg,
                     contentColor = StatusPublishedText
                 )
                 EditorStatCard(
                     modifier = Modifier.weight(1f),
                     label = "Pending",
                     value = pendingCount.toString(),
-                    containerColor = StatusPendingBg, // Pastikan warna ini ada di Theme atau ganti Color.Yellow
+                    containerColor = StatusPendingBg,
                     contentColor = StatusPendingText
                 )
             }
@@ -202,7 +209,7 @@ fun EditorDashboardScreen(
 }
 
 // ------------------------------------------------
-// HELPER COMPONENTS
+// HELPER COMPONENTS (Tidak diubah, hanya dipindahkan untuk kelengkapan)
 // ------------------------------------------------
 
 @Composable
@@ -305,8 +312,7 @@ fun EditorRankCard(rank: Int, title: String, views: Int) {
 private fun EditorDashboardScreenPreview() {
     NewsPolnesTheme {
         EditorDashboardScreen(
-            currentRoute = "editor_dashboard",
-            onNavigate = {}
+            authViewModel = viewModel()
         )
     }
 }

@@ -21,8 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.mxlkt.newspolnes.model.DummyData
+import com.mxlkt.newspolnes.model.StoreData
 import com.mxlkt.newspolnes.model.News
 import com.mxlkt.newspolnes.model.NewsStatus
 import com.mxlkt.newspolnes.ui.theme.*
@@ -91,7 +90,7 @@ fun ArticleCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = DummyData.formatDate(article.date),
+                            text = StoreData.formatDate(article.date),
                             style = MaterialTheme.typography.labelSmall,
                             color = Color.Gray
                         )
@@ -155,7 +154,7 @@ fun ArticleCard(
 @Preview(showBackground = true, name = "Article Card Preview")
 @Composable
 private fun ArticleCardPreview() {
-    val sampleNews = DummyData.newsList.firstOrNull()
+    val sampleNews = StoreData.newsList.firstOrNull()
     NewsPolnesTheme {
         Column(
             modifier = Modifier

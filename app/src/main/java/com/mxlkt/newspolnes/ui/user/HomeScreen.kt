@@ -14,7 +14,7 @@ import com.mxlkt.newspolnes.components.NewsCard
 import com.mxlkt.newspolnes.components.PolnesTopAppBar
 import com.mxlkt.newspolnes.components.SectionHeader
 import com.mxlkt.newspolnes.components.UserBottomNav
-import com.mxlkt.newspolnes.model.DummyData
+import com.mxlkt.newspolnes.model.StoreData
 
 @Composable
 fun HomeScreen(
@@ -24,13 +24,13 @@ fun HomeScreen(
     onNewsClick: (Int) -> Unit
 ) {
     // Data Dummy Existing
-    val latestNews = DummyData.newsList.sortedByDescending { it.date }.firstOrNull()
-    val topViewedNews = DummyData.newsList.sortedByDescending { it.views }.firstOrNull()
+    val latestNews = StoreData.newsList.sortedByDescending { it.date }.firstOrNull()
+    val topViewedNews = StoreData.newsList.sortedByDescending { it.views }.firstOrNull()
 
     // 🟢 Cari 1 Berita dengan Rating Tertinggi untuk ditampilkan di Home
     val topRatedNews = remember {
-        DummyData.newsList.maxByOrNull { news ->
-            val comments = DummyData.commentList.filter { it.newsId == news.id }
+        StoreData.newsList.maxByOrNull { news ->
+            val comments = StoreData.commentList.filter { it.newsId == news.id }
             if (comments.isNotEmpty()) comments.map { it.rating }.average() else 0.0
         }
     }

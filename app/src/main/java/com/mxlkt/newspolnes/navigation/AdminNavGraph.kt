@@ -1,6 +1,5 @@
 package com.mxlkt.newspolnes.navigation
 
-// 🟢 Tambahkan Import Animasi
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -22,7 +21,7 @@ import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.mxlkt.newspolnes.components.AdminBottomNav
 import com.mxlkt.newspolnes.components.TitleOnlyTopAppBar
-import com.mxlkt.newspolnes.model.User
+// import com.mxlkt.newspolnes.model.User
 import com.mxlkt.newspolnes.ui.admin.*
 import com.mxlkt.newspolnes.ui.common.PrivacyPolicyScreen
 import com.mxlkt.newspolnes.ui.common.AboutScreen
@@ -31,7 +30,7 @@ import com.mxlkt.newspolnes.ui.common.AboutScreen
 @Composable
 fun AdminNavGraph(
     rootNavController: NavHostController,
-    currentUser: User?,
+    // currentUser: User?, // Dihapus
     onLogout: () -> Unit
 ) {
     val adminNavController = rememberNavController()
@@ -52,12 +51,14 @@ fun AdminNavGraph(
         "Categories" -> "Manage Categories"
         "Users" -> "Manage Users"
         "Settings" -> "Settings"
+        "PrivacyPolicy" -> "Privacy Policy"
+        "About" -> "About"
         else -> ""
     }
 
     Scaffold(
         topBar = {
-            if (showBars) {
+            if (showBars || currentRoute == "PrivacyPolicy" || currentRoute == "About") {
                 TitleOnlyTopAppBar(title = topBarTitle)
             }
         },
@@ -81,15 +82,12 @@ fun AdminNavGraph(
             navController = adminNavController,
             startDestination = "Dashboard",
             modifier = Modifier.padding(innerPadding),
-            // 🟢 ANIMASI TRANSISI (Sama dengan UserNavGraph)
             enterTransition = { slideInHorizontally(initialOffsetX = { 1000 }, animationSpec = tween(300)) },
             exitTransition = { slideOutHorizontally(targetOffsetX = { -1000 }, animationSpec = tween(300)) },
             popEnterTransition = { slideInHorizontally(initialOffsetX = { -1000 }, animationSpec = tween(300)) },
             popExitTransition = { slideOutHorizontally(targetOffsetX = { 1000 }, animationSpec = tween(300)) }
         ) {
-            composable("Dashboard") {
-                AdminDashboardScreen()
-            }
+            composable("Dashboard") { AdminDashboardScreen() }
 
             composable("News") {
                 ManageNewsScreen(

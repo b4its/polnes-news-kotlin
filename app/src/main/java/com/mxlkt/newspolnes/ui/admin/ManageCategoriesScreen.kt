@@ -19,7 +19,7 @@ import com.mxlkt.newspolnes.components.AdminCategoryCard
 import com.mxlkt.newspolnes.components.DeleteConfirmationDialog
 import com.mxlkt.newspolnes.components.TitleOnlyTopAppBar
 import com.mxlkt.newspolnes.model.Category
-import com.mxlkt.newspolnes.model.DummyData
+import com.mxlkt.newspolnes.model.StoreData
 import com.mxlkt.newspolnes.ui.theme.NewsPolnesTheme
 
 @Composable
@@ -27,7 +27,7 @@ fun ManageCategoriesScreen(
     onAddCategoryClick: () -> Unit,
     onEditCategoryClick: (Int) -> Unit // ✅ Parameter baru untuk navigasi Edit
 ) {
-    val categories = DummyData.categoryList
+    val categories = StoreData.categoryList
     val context = LocalContext.current
 
     // State untuk menyimpan kategori yang sedang ingin dihapus
@@ -40,7 +40,7 @@ fun ManageCategoriesScreen(
             onDismiss = { categoryToDelete = null },
             onConfirm = {
                 // Simulasi: Cek apakah kategori dipakai
-                val isUsed = DummyData.newsList.any { it.categoryId == categoryToDelete?.id }
+                val isUsed = StoreData.newsList.any { it.categoryId == categoryToDelete?.id }
 
                 if (isUsed) {
                     Toast.makeText(context, "Cannot delete! Category is in use.", Toast.LENGTH_SHORT).show()

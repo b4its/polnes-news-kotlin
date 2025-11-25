@@ -19,7 +19,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.mxlkt.newspolnes.model.DummyData
+import com.mxlkt.newspolnes.model.StoreData
 import com.mxlkt.newspolnes.model.News
 
 @Composable
@@ -27,7 +27,7 @@ fun NewsCard(
     news: News,
     onClick: () -> Unit
 ) {
-    val categoryName = DummyData.categoryList.find { it.id == news.categoryId }?.name ?: "Unknown"
+    val categoryName = StoreData.categoryList.find { it.id == news.categoryId }?.name ?: "Unknown"
 
     Box(
         modifier = Modifier
@@ -81,6 +81,6 @@ fun NewsCard(
 @Preview(showBackground = true)
 @Composable
 fun NewsCardPreview() {
-    val sampleNews = DummyData.newsList[0]
+    val sampleNews = StoreData.newsList[0]
     NewsCard(news = sampleNews, onClick = {})
 }

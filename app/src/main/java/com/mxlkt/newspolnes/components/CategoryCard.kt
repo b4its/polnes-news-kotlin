@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
-import com.mxlkt.newspolnes.model.DummyData
+import com.mxlkt.newspolnes.model.StoreData
 import com.mxlkt.newspolnes.model.Category
 
 @Composable
@@ -76,7 +76,7 @@ fun CategoryCard(
 @Composable
 fun CategoryCardPreview() {
     //  ambil data kategori pertama dari DummyData
-    val sampleCategory = DummyData.categoryList[0]
+    val sampleCategory = StoreData.categoryList[0]
 
     // panggil CategoryCard dengan data itu
     CategoryCard(

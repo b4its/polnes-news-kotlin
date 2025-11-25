@@ -13,69 +13,82 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.* // Import perluasan untuk collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext // Diperlukan untuk SessionManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mxlkt.newspolnes.components.AccountInfoCard
-import com.mxlkt.newspolnes.model.DummyData
-import com.mxlkt.newspolnes.model.News
+import com.mxlkt.newspolnes.model.StoreData
 import com.mxlkt.newspolnes.model.NewsStatus
 import com.mxlkt.newspolnes.model.User
 import com.mxlkt.newspolnes.model.UserRole
 import com.mxlkt.newspolnes.ui.theme.*
-import com.mxlkt.newspolnes.utils.SessionManager // 🟢 Import SessionManager
+import com.mxlkt.newspolnes.utils.SessionManager
 
 @Composable
-fun AdminDashboardScreen(
-    // Parameter dihapus, karena currentUser diambil dari SessionManager
-) {
-    // 🟢 Ambil user dari SessionManager
-    val currentUser = SessionManager.currentUser
+fun AdminDashboardScreen() {
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
 
-    // --- 1. Hitung Data Statistik Global ---
-    val pendingNews = DummyData.newsList.count {
-        it.status == NewsStatus.PENDING_REVIEW || it.status == NewsStatus.PENDING_DELETION
+    // � PERBAIKAN: Ambil ID user dari SessionManager (Flow)
+    val loggedInUserId by sessionManager.userId.collectAsState(initial = null)
+
+    // � Cari objek User Admin yang sedang login
+    val currentUser = remember(loggedInUserId) {
+        loggedInUserId?.let { id -> StoreData.userList.find { it.id == id && it.role == UserRole.ADMIN } }
     }
-    val publishedNews = DummyData.newsList.count { it.status == NewsStatus.PUBLISHED }
-    val totalViews = DummyData.newsList.sumOf { it.views }
-    val totalEditors = DummyData.userList.count { it.role == UserRole.EDITOR }
-    val totalReaders = DummyData.userList.count { it.role == UserRole.USER }
-    val totalCategories = DummyData.categoryList.size
+
+    // --- 1. Hitung Data Statistik Global (Menggunakan remember untuk efisiensi) ---
+    val pendingNews = remember {
+        StoreData.newsList.count { it.status == NewsStatus.PENDING_REVIEW || it.status == NewsStatus.PENDING_DELETION }
+    }
+    val publishedNews = remember {
+        StoreData.newsList.count { it.status == NewsStatus.PUBLISHED }
+    }
+    val totalViews = remember { StoreData.newsList.sumOf { it.views } }
+    val totalEditors = remember {
+        StoreData.userList.count { it.role == UserRole.EDITOR }
+    }
+    val totalReaders = remember {
+        StoreData.userList.count { it.role == UserRole.USER }
+    }
+    val totalCategories = remember { StoreData.categoryList.size }
 
     // --- 2. Data Analitik ---
+    // Note: Karena StoreData.newsList/commentList adalah mutableList (setelah perbaikan sebelumnya),
+    // data analitik ini seharusnya dibungkus dalam remember dengan kunci jika data StoreData sering berubah.
+    // Untuk dummy data yang tidak sering berubah, ini cukup.
     val categoryViewsMap = remember {
-        DummyData.categoryList.map { category ->
-            val viewsInCategory = DummyData.newsList
+        StoreData.categoryList.map { category ->
+            val viewsInCategory = StoreData.newsList
                 .filter { it.categoryId == category.id }
                 .sumOf { it.views }
             category.name to viewsInCategory
         }.filter { it.second > 0 }
     }
 
-    val topNews = remember { DummyData.newsList.sortedByDescending { it.views }.take(3) }
+    val topNews = remember { StoreData.newsList.sortedByDescending { it.views }.take(3) }
 
     val topRatedNews = remember {
-        DummyData.newsList.map { news ->
-            val ratings = DummyData.commentList.filter { it.newsId == news.id }.map { it.rating }
+        StoreData.newsList.map { news ->
+            val ratings = StoreData.commentList.filter { it.newsId == news.id }.map { it.rating }
             val avgRating = if (ratings.isNotEmpty()) ratings.average() else 0.0
             news to avgRating
         }.sortedByDescending { it.second }.take(3)
     }
 
     val topEditors = remember {
-        DummyData.userList.filter { it.role == UserRole.EDITOR }.map { editor ->
-            val newsByEditor = DummyData.newsList.filter { it.authorId == editor.id }
-            val ratings = DummyData.commentList.filter { comment ->
+        StoreData.userList.filter { it.role == UserRole.EDITOR }.map { editor ->
+            val newsByEditor = StoreData.newsList.filter { it.authorId == editor.id }
+            val ratings = StoreData.commentList.filter { comment ->
                 newsByEditor.any { it.id == comment.newsId }
             }.map { it.rating }
             val avg = if (ratings.isNotEmpty()) ratings.average() else 0.0
@@ -94,8 +107,9 @@ fun AdminDashboardScreen(
 
         // Info Akun
         AccountInfoCard(
-            fullName = currentUser?.name ?: "Admin",
-            role = "Administrator",
+            // � Gunakan currentUser yang sudah dikoleksi
+            fullName = currentUser?.name ?: "Guest Admin",
+            role = currentUser?.role?.name ?: "Administrator",
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -246,7 +260,7 @@ fun AdminDashboardScreen(
 }
 
 // ------------------------------------------------
-// UI COMPONENTS
+// UI COMPONENTS (TIDAK ADA PERUBAHAN FUNGSIONAL)
 // ------------------------------------------------
 
 @Composable
@@ -351,7 +365,7 @@ fun SimpleRankCard(
 
 @Composable
 fun TopEditorItemCard(rank: Int, user: User, rating: Double) {
-    // 🟢 Tentukan Warna Editor
+    // Tentukan Warna Editor
     val bgColor = StatusPendingBg
     val contentColor = StatusPendingText
 
@@ -366,7 +380,7 @@ fun TopEditorItemCard(rank: Int, user: User, rating: Double) {
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 🟢 Icon Rank (Fix Warna Editor)
+            // Icon Rank
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -472,7 +486,7 @@ fun SimplePieChart(data: List<Pair<String, Int>>) {
             }
         }
 
-        // LEGEND SECTION (Fix Box Error)
+        // LEGEND SECTION
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             data.forEachIndexed { index, pair ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -482,7 +496,7 @@ fun SimplePieChart(data: List<Pair<String, Int>>) {
                             .clip(CircleShape)
                             .background(chartColors.getOrElse(index) { Color.Gray }),
                         contentAlignment = Alignment.Center
-                    ) {} // 🟢 FIX: Tambahkan blok konten kosong
+                    ) {} // Blok konten kosong untuk Box
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
                         Text(

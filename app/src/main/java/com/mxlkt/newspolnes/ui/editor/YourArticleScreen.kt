@@ -15,37 +15,58 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.mxlkt.newspolnes.components.ArticleCard
 import com.mxlkt.newspolnes.components.ConfirmationDialog
-import com.mxlkt.newspolnes.model.DummyData
+import com.mxlkt.newspolnes.model.StoreData
 import com.mxlkt.newspolnes.model.News
 import com.mxlkt.newspolnes.model.NewsStatus
 import com.mxlkt.newspolnes.ui.theme.ActionDeleteIcon
 import com.mxlkt.newspolnes.ui.theme.NewsPolnesTheme
 import com.mxlkt.newspolnes.ui.theme.White
-// 🟢 Import SessionManager
 import com.mxlkt.newspolnes.utils.SessionManager
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun YourArticleScreen(navController: NavHostController) {
-    // 🟢 1. Data Awal: Ambil dari SessionManager (Bukan hardcoded lagi)
-    val currentUser = SessionManager.currentUser
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
+    val coroutineScope = rememberCoroutineScope()
 
-    // Filter artikel hanya milik user yang sedang login
-    val allEditorArticles = remember(currentUser) {
-        DummyData.newsList.filter { it.authorId == currentUser?.id }
+    // � VARIABEL KRITIS: State untuk memaksa Recomposition setelah data StoreData diubah
+    var dataVersion by remember { mutableStateOf(0) }
+
+    val userId by sessionManager.userId.collectAsState(initial = null)
+    val isLoggedIn by sessionManager.isLoggedIn.collectAsState(initial = false)
+
+    if (!isLoggedIn || userId == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
     }
 
-    // 2. State Search
+    // 2. Filter Artikel: allEditorArticles bergantung pada userId dan dataVersion
+    val allEditorArticles = remember(userId, dataVersion) {
+        val currentUserId = userId
+        if (currentUserId != null) {
+            // Membaca ulang data setiap kali dataVersion berubah
+            StoreData.newsList.filter { it.authorId == currentUserId }
+        } else {
+            emptyList()
+        }
+    }
+
+    // 3. State Search
     var searchQuery by remember { mutableStateOf("") }
     var articleToDelete by remember { mutableStateOf<News?>(null) }
 
-    // 3. Logic Filter Search
+    // 4. Logic Filter Search
     val displayedArticles = remember(searchQuery, allEditorArticles) {
         if (searchQuery.isBlank()) {
             allEditorArticles
@@ -70,14 +91,29 @@ fun YourArticleScreen(navController: NavHostController) {
 
         // Dialog Konfirmasi Hapus
         if (articleToDelete != null) {
+            val article = articleToDelete!!
             ConfirmationDialog(
                 title = "Hapus Artikel?",
-                text = "Apakah Anda yakin ingin mengajukan penghapusan untuk artikel '${articleToDelete?.title}'?",
+                text = "Apakah Anda yakin ingin mengajukan penghapusan untuk artikel '${article.title}'?",
                 confirmButtonColor = ActionDeleteIcon,
                 confirmButtonText = "Hapus",
                 dismissButtonText = "Batal",
                 onDismiss = { articleToDelete = null },
-                onConfirm = { articleToDelete = null }
+                onConfirm = {
+                    coroutineScope.launch {
+                        val index = StoreData.newsList.indexOfFirst { it.id == article.id }
+                        if (index != -1) {
+                            val updatedArticle = article.copy(status = NewsStatus.PENDING_DELETION)
+
+                            // Baris ini sekarang aman karena StoreData.newsList adalah var mutableListOf
+                            StoreData.newsList[index] = updatedArticle
+
+                            // � Paksa Recomposition dengan mengubah dataVersion
+                            dataVersion++
+                        }
+                        articleToDelete = null
+                    }
+                }
             )
         }
 
@@ -85,40 +121,36 @@ fun YourArticleScreen(navController: NavHostController) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = innerPadding.calculateTopPadding()) // Padding atas Scaffold
+                .padding(top = innerPadding.calculateTopPadding())
                 .background(MaterialTheme.colorScheme.background)
         ) {
 
-            // 🟢 SEARCH BAR (Background Putih)
-            PaddingValues(16.dp).let {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search your articles...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear")
-                            }
+            // SEARCH BAR
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Search your articles...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.Default.Close, contentDescription = "Clear")
                         }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    singleLine = true,
-                    shape = RoundedCornerShape(24.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        // Warna Putih Solid
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        disabledContainerColor = Color.White,
-                        // Border
-                        unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f),
-                        focusedBorderColor = MaterialTheme.colorScheme.primary
-                    )
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                singleLine = true,
+                shape = RoundedCornerShape(24.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    disabledContainerColor = Color.White,
+                    unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f),
+                    focusedBorderColor = MaterialTheme.colorScheme.primary
                 )
-            }
+            )
 
             // Konten List
             if (displayedArticles.isEmpty()) {
@@ -136,13 +168,13 @@ fun YourArticleScreen(navController: NavHostController) {
             } else {
                 LazyColumn(
                     contentPadding = PaddingValues(
-                        bottom = innerPadding.calculateBottomPadding() + 80.dp, // Spacer buat FAB
+                        bottom = innerPadding.calculateBottomPadding() + 80.dp,
                         start = 0.dp,
                         end = 0.dp
                     ),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(displayedArticles) { article ->
+                    items(displayedArticles, key = { it.id }) { article ->
 
                         // Logic Status Badge (Overlay)
                         val (statusMessage, statusColor) = when (article.status) {
@@ -150,27 +182,34 @@ fun YourArticleScreen(navController: NavHostController) {
                             NewsStatus.PENDING_DELETION -> "Menunggu Hapus" to MaterialTheme.colorScheme.error
                             NewsStatus.PENDING_UPDATE -> "Menunggu Edit" to MaterialTheme.colorScheme.secondary
                             NewsStatus.REJECTED -> "Ditolak Admin" to MaterialTheme.colorScheme.error
+                            NewsStatus.DRAFT -> "Draft" to Color.Gray
                             else -> null to Color.Transparent
                         }
+
+                        // Tentukan apakah artikel bisa di-edit/hapus
+                        val canEditOrDelete = article.status in listOf(
+                            NewsStatus.DRAFT,
+                            NewsStatus.REJECTED,
+                            NewsStatus.PUBLISHED
+                        )
 
                         Box(modifier = Modifier.fillMaxWidth()) {
                             ArticleCard(
                                 article = article,
                                 onEdit = {
-                                    // Hanya bisa edit jika tidak sedang dalam proses (Pending)
-                                    if (statusMessage == null || article.status == NewsStatus.DRAFT || article.status == NewsStatus.REJECTED) {
+                                    if (canEditOrDelete) {
                                         navController.navigate("article_form?articleId=${article.id}")
                                     }
                                 },
                                 onDelete = {
-                                    if (statusMessage == null || article.status == NewsStatus.DRAFT || article.status == NewsStatus.REJECTED) {
+                                    if (canEditOrDelete) {
                                         articleToDelete = article
                                     }
                                 }
                             )
 
-                            // Badge Overlay jika ada status khusus
-                            if (statusMessage != null) {
+                            // Badge Overlay
+                            if (statusMessage != null && article.status != NewsStatus.PUBLISHED) {
                                 Surface(
                                     color = statusColor.copy(alpha = 0.9f),
                                     contentColor = White,

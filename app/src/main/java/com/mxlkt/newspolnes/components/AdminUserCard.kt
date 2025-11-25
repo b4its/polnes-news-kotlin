@@ -66,7 +66,7 @@ fun AdminUserCard(
             // --- Info User ---
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = user.name,
+                    text = "${user.name}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )

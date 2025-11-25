@@ -14,7 +14,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,16 +25,18 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel // Diperlukan untuk viewModel()
 import coil.compose.rememberAsyncImagePainter
 import com.mxlkt.newspolnes.components.CommonTopBar
 import com.mxlkt.newspolnes.components.DeleteConfirmationDialog
-import com.mxlkt.newspolnes.model.DummyData
+import com.mxlkt.newspolnes.model.StoreData
 import com.mxlkt.newspolnes.model.Category
 import com.mxlkt.newspolnes.model.UserRole
 import com.mxlkt.newspolnes.ui.theme.PolnesGreen
 import com.mxlkt.newspolnes.ui.theme.NewsPolnesTheme
 import com.mxlkt.newspolnes.ui.theme.White
-import com.mxlkt.newspolnes.utils.SessionManager
+// Hapus import com.mxlkt.newspolnes.utils.SessionManager
+import com.mxlkt.newspolnes.view.AuthViewModel // Diperlukan untuk akses data pengguna
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,27 +44,50 @@ fun AddANewCategoryScreen(
     categoryId: Int? = null,
     onBackClick: () -> Unit,
     onSubmitClick: () -> Unit,
-    onDeleteClick: () -> Unit = {}
+    onDeleteClick: () -> Unit = {},
+    authViewModel: AuthViewModel = viewModel() // � Injeksi AuthViewModel
 ) {
-    // 🟢 GUARD: Cek Hak Akses
-    val currentUserRole = SessionManager.currentUser?.role
+    // � 1. Ambil Peran Pengguna dari DataStore (Flow)
+    val currentUserRoleString by authViewModel.userRole.collectAsState(initial = null)
 
+    // Konversi string role menjadi enum UserRole
+    val currentUserRole = remember(currentUserRoleString) {
+        try {
+            currentUserRoleString?.let { UserRole.valueOf(it) }
+        } catch (e: IllegalArgumentException) {
+            null
+        }
+    }
+
+    // � 2. GUARD: Cek Hak Akses
     if (currentUserRole != UserRole.ADMIN) {
-        // Tampilkan pesan akses terbatas dan keluar dari Composable
+        // Tampilkan pesan akses terbatas
         Scaffold(topBar = { CommonTopBar(title = "Access Denied", onBack = onBackClick) }) {
-            Box(modifier = Modifier.fillMaxSize().padding(it), contentAlignment = Alignment.Center) {
-                Text("Error: Hanya Administrator yang dapat mengelola kategori.", color = MaterialTheme.colorScheme.error)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(it)
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "Error: Hanya Administrator yang dapat mengelola kategori. Role Anda: ${currentUserRoleString ?: "N/A"}",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyLarge
+                )
             }
         }
-        return
+        return // � Penting: Hentikan eksekusi Composable jika bukan Admin
     }
 
     // --- Logic Form (Hanya dijalankan jika user adalah Admin) ---
     val isEditMode = categoryId != null
-    val categoryToEdit: Category? = if (isEditMode) {
-        DummyData.categoryList.find { it.id == categoryId }
-    } else {
-        null
+    val categoryToEdit: Category? = remember {
+        if (isEditMode) {
+            StoreData.categoryList.find { it.id == categoryId }
+        } else {
+            null
+        }
     }
 
     var title by remember { mutableStateOf(categoryToEdit?.name ?: "") }
@@ -98,9 +122,8 @@ fun AddANewCategoryScreen(
                 onBack = onBackClick,
                 colors = topBarColors,
                 windowInsets = WindowInsets(0.dp),
-                // 🔴 ACTIONS: Dikosongkan (Tombol Hapus di TopBar hilang di Mode Edit)
                 actions = {
-                    /* Dihapus sesuai permintaan user */
+                    /* Dikosongkan sesuai permintaan user */
                 }
             )
         },
@@ -227,10 +250,6 @@ fun AddANewCategoryScreen(
                 color = Color.Gray
             )
 
-            // 💡 Catatan: Jika ingin tombol Hapus muncul di bagian bawah form,
-            // kamu bisa menambahkannya di sini dan memanggil showDeleteDialog = true
-            // Button(onClick = { showDeleteDialog = true }, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) { ... }
-
             Spacer(modifier = Modifier.height(80.dp))
         }
     }
@@ -241,6 +260,10 @@ fun AddANewCategoryScreen(
 @Composable
 private fun AddCategoryPreview() {
     NewsPolnesTheme {
+        // Catatan: Di Preview, AuthViewModel akan menggunakan nilai default (null),
+        // sehingga guard biasanya tidak terlewati. Untuk Preview yang lengkap,
+        // Anda mungkin perlu membuat AuthViewModel mock atau mengomentari guard sementara.
+        // Tapi untuk tujuan perbaikan bug ini, versi sekarang sudah benar.
         AddANewCategoryScreen(
             categoryId = null,
             onBackClick = {},
@@ -254,7 +277,6 @@ private fun AddCategoryPreview() {
 @Composable
 private fun EditCategoryPreview() {
     NewsPolnesTheme {
-        // Menggunakan ID 1 dari DummyData (Teknologi)
         AddANewCategoryScreen(
             categoryId = 1,
             onBackClick = {},

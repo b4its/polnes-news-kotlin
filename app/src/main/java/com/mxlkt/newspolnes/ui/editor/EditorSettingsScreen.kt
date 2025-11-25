@@ -1,3 +1,5 @@
+// File: com/mxlkt/newspolnes/ui/editor/EditorSettingsScreen.kt
+
 package com.mxlkt.newspolnes.ui.editor
 
 import androidx.compose.foundation.layout.*
@@ -21,71 +23,84 @@ import com.mxlkt.newspolnes.components.EditorBottomNav
 import com.mxlkt.newspolnes.components.SettingsButton
 import com.mxlkt.newspolnes.components.TitleOnlyTopAppBar
 import com.mxlkt.newspolnes.ui.theme.NewsPolnesTheme
-import com.mxlkt.newspolnes.utils.SessionManager // 🟢 Import SessionManager
+// Hapus import com.mxlkt.newspolnes.utils.SessionManager - sudah benar
+// Hapus import yang tidak digunakan
 
 @Composable
 fun EditorSettingsScreen(
     navController: NavHostController,
-    // currentUser: User?, // 🔴 Hapus parameter ini
+    // � PERBAIKAN: Parameter data pengguna yang dioper dari NavHost
+    userName: String,
+    userRole: String,
     onLogout: () -> Unit,
-    onPrivacyClick: () -> Unit, // 🟢 Parameter Navigasi Baru
-    onAboutClick: () -> Unit    // 🟢 Parameter Navigasi Baru
+    onPrivacyClick: () -> Unit,
+    onAboutClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    // 🟢 Ambil user dari SessionManager
-    val currentUser = SessionManager.currentUser
+    Scaffold(
+        topBar = { TitleOnlyTopAppBar(title = "Settings") }
+        // BottomBar biasanya diletakkan di Root/Main Screen, bukan di sini.
+    ) { innerPadding ->
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(innerPadding) // Penting untuk menghindari tumpang tindih dengan TopBar/BottomBar
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = 8.dp)
+        ) {
+            // --- Bagian Info Akun ---
+            Text(
+                text = "Account",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 18.sp,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(vertical = 16.dp)
-    ) {
-        // --- Bagian Info Akun ---
-        Text(
-            text = "Account",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 18.sp,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
+            AccountInfoCard(
+                fullName = userName,
+                role = userRole,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
 
-        AccountInfoCard(
-            fullName = currentUser?.name ?: "Editor Not Found",
-            role = currentUser?.role?.name?.let {
-                it.lowercase().replaceFirstChar { char -> char.uppercase() }
-            } ?: "Guest"
-        )
+            Spacer(modifier = Modifier.height(24.dp))
 
-        Spacer(modifier = Modifier.height(24.dp))
+            // --- Bagian Tombol-Tombol Pengaturan ---
+            Text(
+                text = "More Settings",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 18.sp,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
 
-        // --- Bagian Tombol-Tombol Pengaturan ---
-        Text(
-            text = "More Settings",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 18.sp,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
+            SettingsButton(
+                text = "Privacy and Policy",
+                icon = Icons.Outlined.PrivacyTip,
+                onClick = onPrivacyClick,
+                // � PERBAIKAN: Tambahkan modifier padding
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            SettingsButton(
+                text = "About",
+                icon = Icons.Outlined.Info,
+                onClick = onAboutClick,
+                // � PERBAIKAN: Tambahkan modifier padding
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
 
-        SettingsButton(
-            text = "Privacy and Policy",
-            icon = Icons.Outlined.PrivacyTip,
-            onClick = onPrivacyClick // 🟢 Panggil navigasi
-        )
-        SettingsButton(
-            text = "About",
-            icon = Icons.Outlined.Info,
-            onClick = onAboutClick // 🟢 Panggil navigasi
-        )
+            // Tombol Logout
+            SettingsButton(
+                text = "Logout",
+                icon = Icons.Outlined.Logout,
+                onClick = onLogout,
+                // � PERBAIKAN: Tambahkan modifier padding
+                modifier = Modifier.padding(horizontal = 16.dp),
+                contentColor = MaterialTheme.colorScheme.error
+            )
 
-        // Tombol Logout
-        SettingsButton(
-            text = "Logout",
-            icon = Icons.Outlined.Logout,
-            onClick = onLogout
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+        }
     }
 }
 
@@ -99,14 +114,16 @@ private fun EditorSettingsScreenPreview() {
             topBar = { TitleOnlyTopAppBar(title = "Settings") },
             bottomBar = { EditorBottomNav(currentRoute = "editor_settings", onNavigate = {}) }
         ) { innerPadding ->
-            Box(modifier = Modifier.padding(innerPadding)) {
-                EditorSettingsScreen(
-                    navController = rememberNavController(),
-                    onLogout = {},
-                    onPrivacyClick = {},
-                    onAboutClick = {}
-                )
-            }
+            // Modifier.padding(innerPadding) diterapkan ke EditorSettingsScreen
+            EditorSettingsScreen(
+                navController = rememberNavController(),
+                userName = "Prof. Budi Santoso",
+                userRole = "Editor",
+                onLogout = {},
+                onPrivacyClick = {},
+                onAboutClick = {},
+                modifier = Modifier.padding(innerPadding)
+            )
         }
     }
 }
