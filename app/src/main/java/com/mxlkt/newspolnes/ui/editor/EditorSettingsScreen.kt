@@ -1,4 +1,4 @@
-package com.kelompok1.polnesnews.ui.editor
+package com.mxlkt.newspolnes.ui.editor
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState

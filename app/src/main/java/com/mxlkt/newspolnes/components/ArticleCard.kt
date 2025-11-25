@@ -156,7 +156,7 @@ fun ArticleCard(
 @Composable
 private fun ArticleCardPreview() {
     val sampleNews = DummyData.newsList.firstOrNull()
-    PolnesNewsTheme {
+    NewsPolnesTheme {
         Column(
             modifier = Modifier
                 .fillMaxSize()

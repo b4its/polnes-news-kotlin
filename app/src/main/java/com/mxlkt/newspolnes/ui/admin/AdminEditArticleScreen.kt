@@ -1,4 +1,4 @@
-package com.kelompok1.polnesnews.ui.admin
+package com.mxlkt.newspolnes.ui.admin
 
 import android.net.Uri
 import android.widget.Toast

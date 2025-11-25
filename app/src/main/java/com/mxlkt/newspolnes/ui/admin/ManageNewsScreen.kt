@@ -1,4 +1,4 @@
-package com.kelompok1.polnesnews.ui.admin
+package com.mxlkt.newspolnes.ui.admin
 
 import android.widget.Toast
 import androidx.compose.foundation.Image

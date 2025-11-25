@@ -98,7 +98,7 @@ fun AdminCategoryCard(
 @Preview(showBackground = true)
 @Composable
 private fun AdminCategoryCardPreview() {
-    PolnesNewsTheme {
+    NewsPolnesTheme {
         val dummyCategory = Category(1, "Technology", 0)
         Box(modifier = Modifier.padding(16.dp)) {
             AdminCategoryCard(category = dummyCategory, onEditClick = {}, onDeleteClick = {})
