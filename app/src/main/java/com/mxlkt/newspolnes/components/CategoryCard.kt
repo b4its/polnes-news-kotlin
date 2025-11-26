@@ -22,6 +22,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.mxlkt.newspolnes.model.StoreData
 import com.mxlkt.newspolnes.model.Category
 
+
+
+
+
+
+
+import com.mxlkt.newspolnes.R
 @Composable
 fun CategoryCard(
     category: Category,
@@ -37,7 +44,7 @@ fun CategoryCard(
     ) {
         // Gambar background
         Image(
-            painter = painterResource(id = category.imageRes),
+            painter = painterResource(id = R.drawable.category_tech),
             contentDescription = category.name,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()

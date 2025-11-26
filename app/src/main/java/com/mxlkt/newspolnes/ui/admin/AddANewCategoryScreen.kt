@@ -38,6 +38,9 @@ import com.mxlkt.newspolnes.ui.theme.White
 // Hapus import com.mxlkt.newspolnes.utils.SessionManager
 import com.mxlkt.newspolnes.view.AuthViewModel // Diperlukan untuk akses data pengguna
 
+
+
+import com.mxlkt.newspolnes.R
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddANewCategoryScreen(
@@ -211,7 +214,7 @@ fun AddANewCategoryScreen(
                 } else if (isEditMode && categoryToEdit != null) {
                     // Tampilkan Gambar Lama dari DummyData
                     Image(
-                        painter = painterResource(id = categoryToEdit.imageRes),
+                        painter = painterResource(id = R.drawable.category_tech),
                         contentDescription = "Current Image",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop

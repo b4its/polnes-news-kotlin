@@ -2,25 +2,34 @@ package com.mxlkt.newspolnes.model
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.lifecycle.viewmodel.compose.viewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import com.mxlkt.newspolnes.R // Asumsikan Anda memiliki file R.java untuk resource drawable
+import com.mxlkt.newspolnes.view.CategoryViewModel
+import com.mxlkt.newspolnes.view.UserViewModel
 
-// --- ASUMSI MODEL DATA (Wajib ada di project Anda) ---
-// enum class UserRole { USER, EDITOR, ADMIN }
-// data class User(...)
-// data class Category(...)
-// data class News(...)
-// data class Comment(...)
-// data class Notification(...)
-// enum class NewsStatus { DRAFT, PENDING_REVIEW, PUBLISHED, ARCHIVED }
-// ----------------------------------------------------
 
 /**
  * Objek singleton untuk menyediakan data (bisa dummy atau dimuat)
  * untuk kebutuhan preview, testing, dan pengembangan awal.
  */
+@Composable
+fun DataService(
+    viewModel: CategoryViewModel = viewModel()
+    ): List<Category> { // <-- Sekarang fungsi ini mengembalikan List<Category>
+
+    val categoryList: List<Category> by viewModel.categories.observeAsState(initial = emptyList())
+    viewModel.fetchCategories()
+
+    // 3. Kembalikan data yang telah diamati (observed)
+    return categoryList
+}
 object StoreData {
 
     @RequiresApi(Build.VERSION_CODES.O)

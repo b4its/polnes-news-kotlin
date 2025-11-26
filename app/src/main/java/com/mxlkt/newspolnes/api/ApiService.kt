@@ -90,7 +90,9 @@ object ApiClient {
         retrofit.create(ApiService::class.java)
     } // Instance ApiService yang akan digunakan di ViewModel
 
-    val apiCategory: ApiCategoryService by lazy {
+    // Instance ApiCategoryService yang baru
+    val apiCategoryService: ApiCategoryService by lazy {
         retrofit.create(ApiCategoryService::class.java)
     }
+
 }
