@@ -37,14 +37,10 @@ fun EditorSettingsScreen(
     onAboutClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Scaffold(
-        topBar = { TitleOnlyTopAppBar(title = "Settings") }
-        // BottomBar biasanya diletakkan di Root/Main Screen, bukan di sini.
-    ) { innerPadding ->
+
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .padding(innerPadding) // Penting untuk menghindari tumpang tindih dengan TopBar/BottomBar
                 .verticalScroll(rememberScrollState())
                 .padding(vertical = 8.dp)
         ) {
@@ -102,7 +98,7 @@ fun EditorSettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
-}
+
 
 // --- PREVIEW ---
 @OptIn(ExperimentalMaterial3Api::class)

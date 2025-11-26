@@ -38,7 +38,7 @@ interface ApiService {
 // Objek Singleton untuk Retrofit dan konfigurasi
 object ApiClient {
     // Pastikan BASE_URL sudah sesuai dengan alamat server Laravel Anda
-    private const val BASE_URL = "http://192.168.1.7:5000/api/"
+    private const val BASE_URL = "https://passanger.b4its.tech/api/"
 
     // Kunci API HARUS SAMA PERSIS dengan PRIVATE_API_KEY di Laravel .env
     private const val API_KEY = "gueKece11"
