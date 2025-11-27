@@ -19,7 +19,7 @@ data class NewsModel(
     val title: String,
     val categoryId: Int,
     val gambar: String?, // URL atau path gambar (bisa null)
-    val content: String,
+    val contents: String,
     val authorId: Int,
     val views: Int,
     val linkYoutube: String?, // Bisa null

@@ -1,4 +1,4 @@
-package com.kelompok1.polnesnews.ui.user
+package com.mxlkt.newspolnes.ui.user
 
 import android.content.Intent
 import android.net.Uri

@@ -1,0 +1,166 @@
+package com.mxlkt.newspolnes.view
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.viewModelScope
+import com.mxlkt.newspolnes.data.NewsRepository
+import com.mxlkt.newspolnes.model.BasicResponse
+import com.mxlkt.newspolnes.model.NewsCreateRequest
+import com.mxlkt.newspolnes.model.NewsModel
+import kotlinx.coroutines.launch
+import java.io.File
+
+class NewsViewModel(application: Application) : AndroidViewModel(application) {
+    // Instance Repository (Dependency Injection sederhana)
+    private val repository = NewsRepository()
+
+    // --- LiveData untuk State UI ---
+
+    // Daftar Berita (untuk layar Index/List)
+    private val _newsList = MutableLiveData<List<NewsModel>>(emptyList())
+    val newsList: LiveData<List<NewsModel>> = _newsList
+
+    // Detail Berita Tunggal (untuk layar Detail)
+    private val _newsDetail = MutableLiveData<NewsModel?>()
+    val newsDetail: LiveData<NewsModel?> = _newsDetail
+
+    // State Loading
+    private val _isLoading = MutableLiveData(false)
+    val isLoading: LiveData<Boolean> = _isLoading
+
+    // Pesan Error
+    private val _errorMessage = MutableLiveData<String?>()
+    val errorMessage: LiveData<String?> = _errorMessage
+
+    // Pesan Sukses untuk operasi CUD (Create/Update/Delete)
+    private val _successMessage = MutableLiveData<String?>()
+    val successMessage: LiveData<String?> = _successMessage
+
+    // --- Fungsi API ---
+
+    /**
+     * Memuat daftar berita dari API (dengan pagination)
+     */
+    fun fetchNewsList(page: Int = 1) {
+        _isLoading.value = true
+        _errorMessage.value = null
+        viewModelScope.launch {
+            try {
+                val response = repository.getNewsList(page)
+                // Jika halaman 1, ganti list. Jika halaman > 1, tambahkan ke list yang sudah ada.
+                if (page == 1) {
+                    _newsList.value = response.data.data
+                } else {
+                    val currentList = _newsList.value.orEmpty().toMutableList()
+                    currentList.addAll(response.data.data)
+                    _newsList.value = currentList
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal memuat berita: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Memuat detail berita berdasarkan ID
+     */
+    fun fetchNewsDetail(newsId: Int) {
+        _isLoading.value = true
+        _errorMessage.value = null
+        _newsDetail.value = null // Bersihkan detail sebelumnya
+        viewModelScope.launch {
+            try {
+                val response = repository.getNewsDetail(newsId)
+                _newsDetail.value = response.data
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal memuat detail berita: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Membuat berita baru (tanpa gambar)
+     */
+    fun createNews(request: NewsCreateRequest) {
+        _isLoading.value = true
+        _errorMessage.value = null
+        _successMessage.value = null
+        viewModelScope.launch {
+            try {
+                val response = repository.createNews(request)
+                _successMessage.value = response.message ?: "Berita berhasil dibuat!"
+                // Opsional: Lakukan refresh list atau navigasi
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal membuat berita: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Memperbarui berita (dengan/tanpa gambar)
+     * Menggunakan overload dengan parameter eksplisit agar mudah dipanggil dari UI
+     */
+    fun updateNews(
+        newsId: Int,
+        title: String,
+        content: String,
+        authorId: Int,
+        categoryId: Int?,
+        linkYoutube: String?,
+        status: String?,
+        imageFile: File?
+    ) {
+        _isLoading.value = true
+        _errorMessage.value = null
+        _successMessage.value = null
+        viewModelScope.launch {
+            try {
+                val response = repository.updateNews(
+                    newsId, title, content, authorId, categoryId, linkYoutube, status, imageFile
+                )
+                _successMessage.value = response.message ?: "Berita berhasil diperbarui!"
+                // Opsional: Lakukan refresh detail
+                _newsDetail.value = response.data // Perbarui detail
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal memperbarui berita: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Menghapus berita
+     */
+    fun deleteNews(newsId: Int) {
+        _isLoading.value = true
+        _errorMessage.value = null
+        _successMessage.value = null
+        viewModelScope.launch {
+            try {
+                val response: BasicResponse = repository.deleteNews(newsId)
+                _successMessage.value = response.message ?: "Berita berhasil dihapus!"
+                // Opsional: Hapus dari daftar di _newsList jika ada
+                _newsList.value = _newsList.value?.filter { it.id != newsId }
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal menghapus berita: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    // Fungsi untuk mereset pesan status
+    fun clearStatusMessages() {
+        _errorMessage.value = null
+        _successMessage.value = null
+    }
+}

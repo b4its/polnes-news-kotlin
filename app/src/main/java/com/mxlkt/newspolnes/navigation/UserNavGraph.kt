@@ -18,7 +18,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.kelompok1.polnesnews.ui.user.NewsDetailScreen
+import com.mxlkt.newspolnes.ui.user.LiveNewsDetailScreen
+import com.mxlkt.newspolnes.ui.user.NewsDetailScreen
 import com.mxlkt.newspolnes.components.PolnesTopAppBar
 import com.mxlkt.newspolnes.components.TitleOnlyTopAppBar
 import com.mxlkt.newspolnes.components.UserBottomNav
@@ -142,7 +143,7 @@ fun UserNavGraph(
             composable("MostViewedNews") {
                 MostViewedNewsScreen(
                     onNavigateBack = { userNavController.popBackStack() },
-                    onNewsClick = { newsId -> userNavController.navigate("NewsDetail/$newsId") }
+                    onNewsClick = { newsId -> userNavController.navigate("LiveNewsDetail/$newsId") }
                 )
             }
 
@@ -174,6 +175,17 @@ fun UserNavGraph(
             ) { backStackEntry ->
                 val newsId = backStackEntry.arguments?.getInt("newsId") ?: 0
                 NewsDetailScreen(
+                    onNavigateBack = { userNavController.popBackStack() },
+                    newsId = newsId
+                )
+            }
+            // Halaman Detail Berita (Tujuan Akhir)
+            composable(
+                route = "LiveNewsDetail/{newsId}",
+                arguments = listOf(navArgument("newsId") { type = NavType.IntType })
+            ) { backStackEntry ->
+                val newsId = backStackEntry.arguments?.getInt("newsId") ?: 0
+                LiveNewsDetailScreen(
                     onNavigateBack = { userNavController.popBackStack() },
                     newsId = newsId
                 )
