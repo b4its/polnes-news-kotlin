@@ -16,19 +16,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.mxlkt.newspolnes.api.ApiClient
 import com.mxlkt.newspolnes.components.AdminBottomNav
 import com.mxlkt.newspolnes.components.AdminCategoryCard
 import com.mxlkt.newspolnes.components.DeleteConfirmationDialog
 import com.mxlkt.newspolnes.components.TitleOnlyTopAppBar
 import com.mxlkt.newspolnes.model.Category
-// � Hapus import DataService, kita akan injeksi ViewModel di sini
-// import com.mxlkt.newspolnes.model.DataService
-import com.mxlkt.newspolnes.model.StoreData // Asumsi ini masih digunakan untuk simulasi
 import com.mxlkt.newspolnes.ui.theme.NewsPolnesTheme
-import com.mxlkt.newspolnes.repository.CategoryViewModelFactory
-import com.mxlkt.newspolnes.view.CategoryViewModel
+// Mengganti import ke path yang benar
+import com.mxlkt.newspolnes.viewmodel.CategoryViewModel
+// Menghapus import ApiClient karena tidak diperlukan di Compose
+// Menghapus import StoreData sesuai permintaan
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManageCategoriesScreen(
     onAddCategoryClick: () -> Unit,
@@ -36,17 +35,13 @@ fun ManageCategoriesScreen(
 ) {
     val context = LocalContext.current
 
-    // 1. Injeksi ViewModel dan Factory
-    // Kita gunakan ApiClient untuk mendapatkan Service yang dibutuhkan Factory
-    val viewModel: CategoryViewModel = viewModel(
-        factory = remember {
-            CategoryViewModelFactory(apiCategoryService = ApiClient.apiCategoryService)
-        }
-    )
+    // 1. Injeksi ViewModel (AndroidViewModel)
+    // Factory dihilangkan karena CategoryViewModel adalah AndroidViewModel
+    val viewModel: CategoryViewModel = viewModel()
 
     // 2. Amati LiveData dari ViewModel
-    // Nilai akan diperbarui secara otomatis saat data diterima
-    val categories by viewModel.categories.observeAsState(initial = emptyList())
+    // Menggunakan nama LiveData yang benar: categoryList
+    val categories by viewModel.categoryList.observeAsState(initial = emptyList())
     val isLoading by viewModel.isLoading.observeAsState(initial = false)
     val errorMessage by viewModel.errorMessage.observeAsState(initial = null)
     val successMessage by viewModel.successMessage.observeAsState(initial = null)
@@ -54,61 +49,106 @@ fun ManageCategoriesScreen(
     // State untuk menyimpan kategori yang sedang ingin dihapus
     var categoryToDelete by remember { mutableStateOf<Category?>(null) }
 
-    // Tampilkan Toast untuk error/success
+    // 3. Panggil fungsi untuk mengambil data saat komponen pertama kali disusun
+    LaunchedEffect(Unit) {
+        viewModel.fetchAllCategories()
+    }
+
+    // 4. Handle side effect: Tampilkan Toast dan reset status
     LaunchedEffect(errorMessage, successMessage) {
         if (errorMessage != null) {
             Toast.makeText(context, "Error: $errorMessage", Toast.LENGTH_LONG).show()
-            // Reset error setelah ditampilkan jika diperlukan
-            // viewModel.clearErrorMessage()
+            // Reset error setelah ditampilkan
+            viewModel.clearStatusMessages()
         }
         if (successMessage != null) {
             Toast.makeText(context, successMessage, Toast.LENGTH_SHORT).show()
             // Reset success setelah ditampilkan
-            // viewModel.clearSuccessMessage()
+            viewModel.clearStatusMessages()
         }
     }
-
 
     // --- Dialog Konfirmasi Hapus ---
     if (categoryToDelete != null) {
         DeleteConfirmationDialog(
             showDialog = true,
+            title = "Hapus Kategori",
+            message = "Apakah Anda yakin ingin menghapus kategori '${categoryToDelete!!.name}'?",
             onDismiss = { categoryToDelete = null },
             onConfirm = {
-                // TODO: GANTI INI DENGAN PANGGILAN viewModel.deleteCategory(categoryToDelete!!.id)
-
-                // SIMULASI LAMA (Hapus ini setelah fungsi deleteCategory tersedia di ViewModel)
-                val isUsed = StoreData.newsList.any { it.categoryId == categoryToDelete?.id }
-
-                if (isUsed) {
-                    Toast.makeText(context, "Cannot delete! Category is in use.", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(context, "Category Deleted: ${categoryToDelete?.name} (Simulated)", Toast.LENGTH_SHORT).show()
-                }
-                // AKHIR SIMULASI
-
+                val idToDelete = categoryToDelete!!.id
                 categoryToDelete = null
+
+                // TODO: PANGGIL FUNGSI DELETE KATEGORI DI VIEWMODEL
+                /*
+                viewModel.deleteCategory(idToDelete)
+                */
+                Toast.makeText(context, "TODO: Panggil deleteCategory($idToDelete)", Toast.LENGTH_SHORT).show()
+
+                // CATATAN: Fungsi deleteCategory harus diimplementasikan di CategoryViewModel.
+                // Fungsi deleteCategory harus memanggil Repository, dan Repository
+                // harus memiliki fungsi DELETE.
             }
         )
     }
 
-
+    Scaffold(
+        topBar = {
+            TitleOnlyTopAppBar(title = "Manage Categories")
+        },
+        bottomBar = {
+            AdminBottomNav(
+                currentRoute = "Categories", // Asumsi rute
+                onItemClick = {} // Navigasi Admin
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onAddCategoryClick,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = Color.White,
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add Category")
+            }
+        }
+    ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(innerPadding)
         ) {
-            // 3. Tampilkan UI berdasarkan status
+
+            // Tampilkan indikator loading di tengah
             if (isLoading) {
-                // Tampilkan indikator loading di tengah
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else if (categories.isEmpty() && errorMessage == null) {
-                // Tampilkan pesan kosong jika tidak ada data dan tidak ada error
+            }
+            // Tampilkan error jika ada (selain loading)
+            else if (errorMessage != null) {
+                // Tampilkan pesan error jika pemuatan gagal
+                Column(
+                    modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Error loading categories. Please retry.",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = { viewModel.fetchAllCategories() }) {
+                        Text("Refresh Data")
+                    }
+                }
+            }
+            // Tampilkan pesan kosong jika tidak ada data
+            else if (categories.isEmpty()) {
                 Text(
                     "No categories found. Add one!",
                     modifier = Modifier.align(Alignment.Center)
                 )
-            } else {
-                // Tampilkan daftar kategori
+            }
+            // Tampilkan daftar kategori
+            else {
                 LazyColumn(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -117,45 +157,56 @@ fun ManageCategoriesScreen(
                     items(categories) { category ->
                         AdminCategoryCard(
                             category = category,
-                            onEditClick = {
-                                onEditCategoryClick(category.id)
-                            },
-                            onDeleteClick = {
-                                categoryToDelete = category
-                            }
+                            onEditClick = { onEditCategoryClick(category.id) },
+                            onDeleteClick = { categoryToDelete = category } // Trigger dialog
                         )
                     }
-                    item { Spacer(modifier = Modifier.height(80.dp)) }
                 }
-            }
-
-            // Floating Action Button
-            FloatingActionButton(
-                onClick = onAddCategoryClick,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = Color.White,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(16.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Category")
             }
         }
     }
+}
 
+// --- Preview (Menggunakan Dummy Data jika perlu) ---
 
-// � Hapus kode Preview lama dan panggil ManageCategoriesScreen di Preview baru
+// Dummy data untuk Preview (jika tidak menggunakan StoreData)
+private val dummyCategoryList = listOf(
+    Category(1, "Teknologi", "url_dummy_1"),
+    Category(2, "Ekonomi", "url_dummy_2"),
+    Category(3, "Politik", "url_dummy_3"),
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 private fun ManageCategoriesFullPreview() {
     NewsPolnesTheme {
-        // Karena Preview tidak bisa menjalankan Composable yang butuh API/ViewModel,
-        // Preview harus dijalankan di environment yang disimulasikan atau dengan memanggil
-        // komponen yang lebih kecil. Namun, untuk menjaga struktur, kita akan panggil
-        // Composable utama.
-        ManageCategoriesScreen(
-            onAddCategoryClick = {},
-            onEditCategoryClick = {} // Dummy action
-        )
+        Scaffold(
+            topBar = {
+                TitleOnlyTopAppBar(title = "Manage Categories (Preview)")
+            },
+            bottomBar = {
+                AdminBottomNav(currentRoute = "Categories", onItemClick = {})
+            },
+            floatingActionButton = {
+                FloatingActionButton(onClick = {}) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Category")
+                }
+            }
+        ) { innerPadding ->
+            LazyColumn(
+                contentPadding = innerPadding,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(dummyCategoryList) { category ->
+                    AdminCategoryCard(
+                        category = category,
+                        onEditClick = { /* no op */ },
+                        onDeleteClick = { /* no op */ }
+                    )
+                }
+            }
+        }
     }
 }

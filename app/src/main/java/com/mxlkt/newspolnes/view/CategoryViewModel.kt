@@ -1,92 +1,61 @@
-package com.mxlkt.newspolnes.view
+package com.mxlkt.newspolnes.viewmodel
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.mxlkt.newspolnes.api.ApiCategoryService // Import yang benar
 import com.mxlkt.newspolnes.model.Category
-import com.mxlkt.newspolnes.model.CategoryDto
 import com.mxlkt.newspolnes.model.CategoryRequest
+import com.mxlkt.newspolnes.repository.CategoryRepository
 import kotlinx.coroutines.launch
 
-class CategoryViewModel(
-    // � KOREKSI: Hanya butuh ApiCategoryService, API Key sudah di Interceptor
-    private val apiCategoryService: ApiCategoryService
-) : ViewModel() {
+/**
+ * ViewModel untuk mengelola data kategori, menyesuaikan pola dari NewsViewModel.
+ */
+class CategoryViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val _categories = MutableLiveData<List<Category>>()
-    val categories: LiveData<List<Category>> = _categories
+    // Instance Repository (Diinisialisasi secara sederhana)
+    private val repository = CategoryRepository()
 
+    // --- LiveData untuk State UI ---
+
+    // Daftar Kategori (berisi list data kategori)
+    private val _categoryList = MutableLiveData<List<Category>>(emptyList())
+    val categoryList: LiveData<List<Category>> = _categoryList
+
+    // State Loading
     private val _isLoading = MutableLiveData(false)
     val isLoading: LiveData<Boolean> = _isLoading
 
+    // Pesan Error
     private val _errorMessage = MutableLiveData<String?>()
     val errorMessage: LiveData<String?> = _errorMessage
 
+    // Pesan Sukses untuk operasi CUD
     private val _successMessage = MutableLiveData<String?>()
     val successMessage: LiveData<String?> = _successMessage
 
-    init {
-        fetchCategories()
-    }
+    // Data kategori tunggal hasil operasi CREATE/UPDATE
+    private val _singleCategory = MutableLiveData<Category?>()
+    val singleCategory: LiveData<Category?> = _singleCategory
+
+
+    // --- Fungsi API ---
 
     /**
-     * Mengambil daftar kategori dari API secara asinkron.
+     * Memuat daftar semua kategori.
      */
-    fun fetchCategories() {
+    fun fetchAllCategories() {
         _isLoading.value = true
-        _successMessage.value = null
-        viewModelScope.launch {
-            try {
-                // � KOREKSI: Panggil tanpa menyertakan apiKey
-                val response = apiCategoryService.getAllCategories()
-
-                if (response.isSuccessful && response.body()?.data != null) {
-                    val categoryList = response.body()!!.data!!.map { dto: CategoryDto ->
-                        Category(
-                            id = dto.id,
-                            name = dto.name,
-                            gambar = 0 // Asumsi gambar = 0 adalah default
-                        )
-                    }
-                    _categories.postValue(categoryList)
-                    _errorMessage.postValue(null)
-                } else {
-                    val errorBody = response.errorBody()?.string() ?: "Unknown error"
-                    _errorMessage.postValue("Failed to load categories: HTTP ${response.code()} - $errorBody")
-                }
-            } catch (e: Exception) {
-                _errorMessage.postValue("Network error: ${e.localizedMessage}")
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-
-    /**
-     * Menyimpan kategori baru ke database (CREATE/STORE).
-     */
-    fun createCategory(name: String, imageUrl: String) {
-        _isLoading.value = true
-        _successMessage.value = null
         _errorMessage.value = null
         viewModelScope.launch {
             try {
-                val request = CategoryRequest(name = name, gambar = imageUrl)
-                // � KOREKSI: Panggil tanpa menyertakan apiKey
-                val response = apiCategoryService.createCategory(request)
-
-                if (response.isSuccessful && response.body()?.data != null) {
-                    _successMessage.postValue("Category '$name' created successfully!")
-                    fetchCategories()
-                } else {
-                    val errorBody = response.errorBody()?.string() ?: "Unknown error"
-                    _errorMessage.postValue("Failed to create category: HTTP ${response.code()} - $errorBody")
-                }
+                // Repository mengembalikan List<Category> atau melempar Exception
+                val categories: List<Category> = repository.getAllCategories()
+                _categoryList.value = categories
             } catch (e: Exception) {
-                _errorMessage.postValue("Network error during creation: ${e.localizedMessage}")
+                _errorMessage.value = "Gagal memuat kategori: ${e.message}"
             } finally {
                 _isLoading.value = false
             }
@@ -94,30 +63,60 @@ class CategoryViewModel(
     }
 
     /**
-     * Memperbarui kategori yang sudah ada di database (UPDATE).
+     * Membuat kategori baru.
      */
-    fun updateCategory(id: Int, name: String, imageUrl: String) {
+    fun createCategory(request: CategoryRequest) {
         _isLoading.value = true
-        _successMessage.value = null
         _errorMessage.value = null
+        _successMessage.value = null
         viewModelScope.launch {
             try {
-                val request = CategoryRequest(name = name, gambar = imageUrl)
-                // � KOREKSI: Panggil tanpa menyertakan apiKey
-                val response = apiCategoryService.updateCategory(id, request)
+                // Repository mengembalikan Category data atau melempar Exception
+                val newCategory: Category = repository.createCategory(request)
 
-                if (response.isSuccessful && response.body()?.data != null) {
-                    _successMessage.postValue("Category ID $id updated successfully!")
-                    fetchCategories()
-                } else {
-                    val errorBody = response.errorBody()?.string() ?: "Unknown error"
-                    _errorMessage.postValue("Failed to update category: HTTP ${response.code()} - $errorBody")
-                }
+                _successMessage.value = "Kategori ${newCategory.name} berhasil dibuat!"
+                _singleCategory.value = newCategory
+
+                // Opsional: Perbarui daftar di UI dengan data baru (jika perlu)
+                fetchAllCategories()
             } catch (e: Exception) {
-                _errorMessage.postValue("Network error during update: ${e.localizedMessage}")
+                _errorMessage.value = "Gagal membuat kategori: ${e.message}"
             } finally {
                 _isLoading.value = false
             }
         }
+    }
+
+    /**
+     * Memperbarui kategori yang sudah ada.
+     */
+    fun updateCategory(categoryId: Int, request: CategoryRequest) {
+        _isLoading.value = true
+        _errorMessage.value = null
+        _successMessage.value = null
+        viewModelScope.launch {
+            try {
+                // Repository mengembalikan Category data atau melempar Exception
+                val updatedCategory: Category = repository.updateCategory(categoryId, request)
+
+                _successMessage.value = "Kategori ${updatedCategory.name} berhasil diperbarui!"
+                _singleCategory.value = updatedCategory
+
+                // Opsional: Perbarui daftar di UI dengan data yang diperbarui
+                fetchAllCategories()
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal memperbarui kategori: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Fungsi untuk mereset pesan status
+     */
+    fun clearStatusMessages() {
+        _errorMessage.value = null
+        _successMessage.value = null
     }
 }

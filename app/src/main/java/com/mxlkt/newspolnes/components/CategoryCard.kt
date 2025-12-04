@@ -21,58 +21,76 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import com.mxlkt.newspolnes.model.StoreData
 import com.mxlkt.newspolnes.model.Category
-
-
-
-
-
-
-
 import com.mxlkt.newspolnes.R
+// Import untuk Coil AsyncImage (Asumsi Anda menggunakan Coil)
+import coil.compose.AsyncImage
+
 @Composable
 fun CategoryCard(
     category: Category,
     onClick: () -> Unit
 ) {
+    // URL dasar untuk gambar kategori (Ganti jika perlu)
+    val BASE_IMAGE_URL = "https://polnes-news.b4its.tech/public/"
+    // URL Fallback/Default
+    val FALLBACK_IMAGE_URL = "https://www.internetcepat.id/wp-content/uploads/2023/12/20602785_6325254-scaled-1.jpg"
+
+    // Tentukan URL gambar
+    val imageUrl = if (category.gambar.isNullOrEmpty() || category.gambar == "0") {
+        FALLBACK_IMAGE_URL
+    } else {
+        "$BASE_IMAGE_URL${category.gambar}"
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(3f / 2f)
+            // Menggunakan tinggi tetap daripada aspectRatio agar lebih stabil
+            .height(180.dp)
             .padding(8.dp)
             .clip(RoundedCornerShape(8.dp))
             .clickable { onClick() }
     ) {
-        // Gambar background
-        Image(
-            painter = painterResource(id = R.drawable.category_tech),
-            contentDescription = category.name,
+        // Gambar background menggunakan Coil
+        AsyncImage(
+            // KOREKSI: Menggunakan variabel 'imageUrl' yang sudah diperiksa
+            model = imageUrl,
+            // KOREKSI: contentDescription seharusnya menggunakan nama kategori
+            contentDescription = "Background for category ${category.name}",
             contentScale = ContentScale.Crop,
+            // Fallback/Placeholder
+            placeholder = painterResource(id = R.drawable.category_tech), // Pastikan drawable ada
+            error = painterResource(id = R.drawable.category_economy), // Pastikan drawable ada
             modifier = Modifier.fillMaxSize()
         )
 
         // Overlay hitam semi transparan di bawah 25%
+        // Ini menciptakan efek Vignette di bagian bawah untuk membuat teks lebih mudah dibaca
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.25f)
+                // Menggunakan tinggi tetap jika aspectRatio dihapus, atau tetap 25% tinggi Box
+                .fillMaxHeight(0.35f)
                 .align(Alignment.BottomCenter)
-                .graphicsLayer(alpha = 0.4f)
-                .background(Color.Black)
+                // Menggunakan Color.Black dengan alpha langsung, lebih sederhana daripada graphicsLayer
+                .background(Color.Black.copy(alpha = 0.5f))
         )
 
         // Teks kategori di tengah overlay
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.25f)
-                .align(Alignment.BottomCenter),
+                .fillMaxHeight(0.35f)
+                .align(Alignment.BottomCenter)
+                .padding(horizontal = 8.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
+                // KOREKSI: Menggunakan 'category.name'
                 text = category.name,
                 color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontSize = 18.sp, // Sedikit lebih besar agar lebih jelas
+                fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
         }
@@ -82,10 +100,11 @@ fun CategoryCard(
 @Preview(showBackground = true)
 @Composable
 fun CategoryCardPreview() {
-    //  ambil data kategori pertama dari DummyData
-    val sampleCategory = StoreData.categoryList[0]
+    // Ambil data kategori pertama dari DummyData
+    // Asumsi: categoryList berisi objek Category dengan properti name & gambar
+    val sampleCategory = StoreData.categoryList.firstOrNull() ?: Category(id = 1, name = "Teknologi & Sains", gambar = "0")
 
-    // panggil CategoryCard dengan data itu
+    // Panggil CategoryCard dengan data itu
     CategoryCard(
         category = sampleCategory,
         onClick = {} // Biarkan kosong untuk preview

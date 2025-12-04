@@ -14,8 +14,14 @@ interface ApiCategoryService {
 
     // --- READ ALL ---
     // HAPUS @Header("X-Api-Key") apiKey: String
+
     @GET("category/get")
     suspend fun getAllCategories(): Response<CategoryResponse>
+
+    @GET("category/news/get/{id}")
+    suspend fun getNewsInCategory(
+        @Path("id") categoryId: Int
+    ): Response<CategoryResponse>
 
     // --- CREATE ---
     // HAPUS @Header("X-Api-Key") apiKey: String

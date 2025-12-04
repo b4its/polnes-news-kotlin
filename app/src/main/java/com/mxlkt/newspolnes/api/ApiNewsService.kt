@@ -36,6 +36,12 @@ interface ApiNewsService {
         // TIDAK PERLU @Header("X-Api-Key") karena akses publik
     ): Response<SingleNewsResponse>
 
+
+    @GET("news/category/get/{id}")
+    suspend fun getNewsInCategory(
+        @Path("id") categoryId: Int
+    ): Response<CategoryResponse>
+
     // --- Operasi Tulis (Memerlukan API Key/Otentikasi) ---
 
     // 3. POST (Store - Tambah Berita) - Mengirim data JSON saja (tanpa file gambar)

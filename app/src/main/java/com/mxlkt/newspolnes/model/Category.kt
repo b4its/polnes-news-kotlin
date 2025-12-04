@@ -10,14 +10,7 @@ data class Category(
     val id: Int,
     val name: String,
     // Perhatikan nama kolom di Laravel adalah 'gambar'
-    val gambar: Int
-)
-
-data class CategoryDto(
-    val id: Int,
-    val name: String,
-    // Perhatikan nama kolom di Laravel adalah 'gambar'
-    val gambar: String
+    val gambar: String?
 )
 
 /**
@@ -36,7 +29,7 @@ data class CategoryResponse(
     val message: String,
     val count: Int?, // Boleh null jika ada error
     @SerializedName("data") // Mengambil list CategoryDto dari field 'data'
-    val data: List<CategoryDto>?
+    val data: List<Category>?
 )
 
 /**
@@ -46,5 +39,5 @@ data class SingleCategoryResponse(
     val status: String,
     val message: String,
     @SerializedName("data")
-    val data: CategoryDto?
+    val data: Category?
 )
