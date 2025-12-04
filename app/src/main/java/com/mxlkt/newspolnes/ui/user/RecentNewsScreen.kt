@@ -70,7 +70,7 @@ fun RecentNewsScreen(
     Scaffold(
         topBar = {
             CommonTopBar(
-                title = "Most Viewed News",
+                title = "Recent News",
                 onBack = onNavigateBack
             )
         }

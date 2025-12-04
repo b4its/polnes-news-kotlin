@@ -1,5 +1,7 @@
 package com.mxlkt.newspolnes.navigation
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -27,6 +29,7 @@ import com.mxlkt.newspolnes.ui.user.*
 import com.mxlkt.newspolnes.ui.common.PrivacyPolicyScreen
 import com.mxlkt.newspolnes.ui.common.AboutScreen
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserNavGraph(
@@ -135,7 +138,7 @@ fun UserNavGraph(
             composable("RecentNews") {
                 RecentNewsScreen(
                     onNavigateBack = { userNavController.popBackStack() },
-                    onNewsClick = { newsId -> userNavController.navigate("NewsDetail/$newsId") }
+                    onNewsClick = { newsId -> userNavController.navigate("LiveNewsDetail/$newsId") }
                 )
             }
 
