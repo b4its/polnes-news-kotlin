@@ -1,6 +1,7 @@
 package com.mxlkt.newspolnes.view
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -17,7 +18,6 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = NewsRepository()
 
     // --- LiveData untuk State UI ---
-
     // Daftar Berita (untuk layar Index/List)
     private val _newsList = MutableLiveData<List<NewsModel>>(emptyList())
     val newsList: LiveData<List<NewsModel>> = _newsList
@@ -38,12 +38,67 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
     private val _successMessage = MutableLiveData<String?>()
     val successMessage: LiveData<String?> = _successMessage
 
+
+    // State khusus untuk hasil penambahan views: menyimpan jumlah views terbaru (Int)
+    private val _viewsUpdateResult = MutableLiveData<Int>()
+    val viewsUpdateResult: LiveData<Int> = _viewsUpdateResult
+
     // --- Fungsi API ---
 
     /**
      * Memuat daftar berita dari API (dengan pagination)
      */
     fun fetchNewsList(page: Int = 1) {
+        _isLoading.value = true
+        _errorMessage.value = null
+        viewModelScope.launch {
+            try {
+                val response = repository.getNewsList(page)
+                // Jika halaman 1, ganti list. Jika halaman > 1, tambahkan ke list yang sudah ada.
+                if (page == 1) {
+                    _newsList.value = response.data.data
+                } else {
+                    val currentList = _newsList.value.orEmpty().toMutableList()
+                    currentList.addAll(response.data.data)
+                    _newsList.value = currentList
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal memuat berita: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Memuat daftar berita dari API (dengan pagination)
+     */
+    fun fetchNewsMostViewedList(page: Int = 1) {
+        _isLoading.value = true
+        _errorMessage.value = null
+        viewModelScope.launch {
+            try {
+                val response = repository.getMostViewedList(page)
+                // Jika halaman 1, ganti list. Jika halaman > 1, tambahkan ke list yang sudah ada.
+                if (page == 1) {
+                    _newsList.value = response.data.data
+                } else {
+                    val currentList = _newsList.value.orEmpty().toMutableList()
+                    currentList.addAll(response.data.data)
+                    _newsList.value = currentList
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal memuat berita: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Memuat daftar berita dari API (dengan pagination)
+     */
+    fun fetchNewsMostRatedList(page: Int = 1) {
         _isLoading.value = true
         _errorMessage.value = null
         viewModelScope.launch {
@@ -87,6 +142,8 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Membuat berita baru (tanpa gambar)
      */
+
+
     fun createNews(request: NewsCreateRequest) {
         _isLoading.value = true
         _errorMessage.value = null
@@ -108,6 +165,42 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
      * Memperbarui berita (dengan/tanpa gambar)
      * Menggunakan overload dengan parameter eksplisit agar mudah dipanggil dari UI
      */
+    fun addViews(idNews: Int) {
+        // Operasi ini biasanya berjalan di latar belakang tanpa memblokir UI utama.
+        // Oleh karena itu, kita tidak menggunakan _isLoading utama.
+
+        viewModelScope.launch {
+            try {
+                // Panggil fungsi addViews dari Repository
+                val response = repository.addViews(idNews)
+
+                // Ambil nilai views terbaru dari objek respons
+                // ASUMSI: Kolom 'views' ada di dalam data model berita (SingleNewsResponse.NewsData)
+                val newViews = response.data?.views
+
+                if (newViews != null) {
+                    // Update LiveData untuk views terbaru
+                    _viewsUpdateResult.postValue(newViews)
+                    Log.d("NewsViewModel", "Views for ID $idNews updated to $newViews")
+
+                    // Opsional: Jika NewsDetail sedang ditampilkan, perbarui detailnya
+                    if (_newsDetail.value?.id == idNews) {
+                        _newsDetail.postValue(response.data)
+                    }
+                } else {
+                    Log.e("NewsViewModel", "Views data is missing in the response for ID $idNews.")
+                }
+
+            } catch (e: Exception) {
+                // Log error jika penambahan views gagal (misal: Not Found 404, atau Network Error)
+                Log.e("NewsViewModel", "Failed to add views for ID $idNews: ${e.message}", e)
+                // Catatan: Error di sini biasanya tidak ditampilkan ke pengguna karena
+                // views adalah fungsi sekunder. Tapi jika perlu, bisa menggunakan _errorMessage.
+            }
+        }
+    }
+
+
     fun updateNews(
         newsId: Int,
         title: String,

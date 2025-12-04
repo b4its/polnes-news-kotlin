@@ -7,7 +7,7 @@ data class News(
     val categoryId: Int,
     val imageRes: Int,
     val content: String,
-    val authorId: Int,
+    val authorId: Int?,
     val date: String,
     val views: Int,
     val youtubeVideoId: String?,
@@ -27,8 +27,8 @@ data class NewsModel(
     val created_at: String,
     val updated_at: String,
     // Relasi yang disertakan (dari with(['author:id,name', 'category:id,name']))
-    val author: AuthorModel,
-    val category: CategoryModel
+    val author: AuthorModel?,
+    val category: CategoryModel?
 )
 
 data class AuthorModel(

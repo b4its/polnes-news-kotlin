@@ -1,6 +1,5 @@
 package com.mxlkt.newspolnes.components
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -16,54 +15,61 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-// Import yang diperlukan untuk memuat gambar dari URL
 import coil.compose.AsyncImage
-import com.mxlkt.newspolnes.model.NewsModel // Import NewsModel dari API
-import com.mxlkt.newspolnes.R // Asumsi: R.drawable.placeholder ada
+import com.mxlkt.newspolnes.model.NewsModel
+import com.mxlkt.newspolnes.R
+
+// � HARUS ADA: Definisikan BASE URL untuk gambar
+private const val BASE_IMAGE_URL = "https://polnes-news.b4its.tech/"
 
 @Composable
 fun LiveNewsCard(
-    // � PERUBAHAN 1: Menerima NewsModel dari API
     newsModel: NewsModel,
     onClick: () -> Unit
 ) {
-    // � PERUBAHAN 2: Mengambil nama kategori langsung dari relasi NewsModel
-    val categoryName = newsModel.category.name
+    // 1. Tangani Nullability Kategori (jika model data NewsModel sudah diubah menjadi nullable)
+    // Jika newsModel.category atau .name null, gunakan "UNCATEGORIZED"
+    val categoryName = newsModel.category?.name?.uppercase() ?: "UNCATEGORIZED"
 
-    // Kita tidak lagi butuh StoreData di sini karena NewsModel sudah membawa relasi Category dan Author
+    // 2. Buat URL Gambar lengkap
+    // newsModel.gambar hanya berisi path relatif (misalnya: "media/gambar/...").
+    // Kita harus menggabungkannya dengan BASE_IMAGE_URL.
+    val fullImageUrl = newsModel.gambar?.let {
+        BASE_IMAGE_URL + it
+    }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            // Menggunakan rasio aspek 3:2, yang umum untuk gambar berita
             .aspectRatio(3f / 2f)
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .clickable { onClick() }
             .clip(RoundedCornerShape(8.dp))
     ) {
-        // � PERUBAHAN 3: Menggunakan AsyncImage untuk memuat gambar dari URL (newsModel.gambar)
+        // 3. Gunakan URL Gambar Lengkap (fullImageUrl)
         AsyncImage(
-            model = newsModel.gambar, // URL atau path gambar dari API
+            model = if (newsModel.gambar.isNullOrEmpty()) {
+                "https://www.internetcepat.id/wp-content/uploads/2023/12/20602785_6325254-scaled-1.jpg"
+            } else {
+                "https://polnes-news.b4its.tech/public/${newsModel.gambar}"
+            },
             contentDescription = newsModel.title,
             contentScale = ContentScale.Crop,
-            // Opsional: Tampilkan placeholder jika gambar null/sedang dimuat
+            // Fallback/Placeholder (Pastikan drawable ini ada di proyek Anda)
             placeholder = painterResource(id = R.drawable.category_tech),
             error = painterResource(id = R.drawable.category_economy),
             modifier = Modifier.fillMaxSize()
         )
 
-        // Overlay hitam semi transparan di bawah 25% (untuk kontras teks)
-        // Dibuat lebih besar agar judul panjang tetap terlihat
+        // Overlay hitam semi transparan
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                // Meningkatkan area overlay sedikit (misal 35%)
                 .fillMaxHeight(0.35f)
                 .align(Alignment.BottomCenter)
-                .graphicsLayer(alpha = 0.5f) // Alpha dinaikkan sedikit
+                .graphicsLayer(alpha = 0.5f)
                 .background(Color.Black)
         )
 
@@ -74,7 +80,7 @@ fun LiveNewsCard(
                 .padding(12.dp)
         ) {
             Text(
-                text = categoryName.uppercase(), // Teks kategori di-uppercase agar menonjol
+                text = categoryName,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White,
                 fontSize = 14.sp
@@ -82,24 +88,11 @@ fun LiveNewsCard(
             Text(
                 text = newsModel.title,
                 color = Color.White,
-                fontSize = 15.sp, // Ukuran teks sedikit diperbesar
-                fontWeight = FontWeight.Bold, // Judul dibuat lebih tebal
-                maxLines = 2, // Izinkan 2 baris untuk judul
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
         }
     }
 }
-
-// ⚠️ PREVIEW SULIT DILAKUKAN karena butuh data model relasional lengkap
-// Biasanya data palsu untuk preview diletakkan di file terpisah.
-
-// @Preview(showBackground = true)
-// @Composable
-// fun NewsCardPreview() {
-// // Menghapus preview yang bergantung pada StoreData.newsList lama
-// // Anda harus membuat NewsModel dummy jika ingin preview berjalan
-// }
-
-// Anda perlu membuat file NewsModel dummy atau menggunakan data dari ViewModel
-// jika Anda ingin menampilkan preview.

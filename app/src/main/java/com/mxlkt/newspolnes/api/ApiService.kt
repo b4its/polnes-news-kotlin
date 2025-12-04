@@ -39,7 +39,7 @@ interface ApiService {
 
 // Objek Singleton untuk Retrofit dan konfigurasi
 object ApiClient {
-    private const val BASE_URL = "https://passanger.b4its.tech/api/"
+    private const val BASE_URL = "https://polnes-news.b4its.tech/api/"
     private const val API_KEY = "gueKece11" // Kunci API
 
     // Penyimpanan Token Otentikasi (Bearer Token)

@@ -14,9 +14,30 @@ class NewsRepository(
     private val apiNewsServicePublic: ApiNewsService = ApiClient.apiNewsServicePublic,
     private val apiNewsServices: ApiNewsService = ApiClient.apiNewsService
 ) {
+
     // 1. GET Daftar Berita (Publik)
     suspend fun getNewsList(page: Int = 1): NewsListResponse {
         val response = apiNewsServicePublic.getNewsList(page)
+        if (response.isSuccessful && response.body() != null) {
+            return response.body()!!
+        }
+        // Melempar exception jika respons gagal
+        throw Exception("Gagal memuat daftar berita: ${response.code()}")
+    }
+
+    // 1. GET Daftar Berita (Publik)
+    suspend fun getMostViewedList(page: Int = 1): NewsListResponse {
+        val response = apiNewsServicePublic.getMostViewedList(page)
+        if (response.isSuccessful && response.body() != null) {
+            return response.body()!!
+        }
+        // Melempar exception jika respons gagal
+        throw Exception("Gagal memuat daftar berita: ${response.code()}")
+    }
+
+    // 1. GET Daftar Berita (Publik)
+    suspend fun getMostRatedList(page: Int = 1): NewsListResponse {
+        val response = apiNewsServicePublic.getMostRatedList(page)
         if (response.isSuccessful && response.body() != null) {
             return response.body()!!
         }
@@ -40,6 +61,20 @@ class NewsRepository(
             return response.body()!!
         }
         throw Exception("Gagal membuat berita: ${response.code()}")
+    }
+
+    suspend fun addViews(newsId: Int): SingleNewsResponse {
+        val response = apiNewsServices.addViewNews(newsId = newsId)
+
+        if (response.isSuccessful && response.body() != null) {
+            // Berdasarkan respons API Laravel, kita mengembalikan data berita yang sudah diupdate.
+            // Respons sukses biasanya mengandung 'data' berita lengkap dengan 'newViews'.
+            return response.body()!!
+        }
+
+        // Tangani error, misalnya 404 Not Found (seperti yang ditangkap di sisi Laravel)
+        val errorBody = response.errorBody()?.string()
+        throw Exception("Gagal menambahkan views untuk berita ID $newsId. Code: ${response.code()}. Error: $errorBody")
     }
 
     // 4. POST Update Berita (Terotentikasi) - Dengan/Tanpa Gambar

@@ -15,6 +15,19 @@ interface ApiNewsService {
         // TIDAK PERLU @Header("X-Api-Key") karena akses publik
     ): Response<NewsListResponse>
 
+    @GET("news/get/most_view/long")
+    suspend fun getMostViewedList(
+        @Query("page") page: Int = 1 // Untuk pagination
+        // TIDAK PERLU @Header("X-Api-Key") karena akses publik
+    ): Response<NewsListResponse>
+
+
+    @GET("news/get/most_rated/long")
+    suspend fun getMostRatedList(
+        @Query("page") page: Int = 1 // Untuk pagination
+        // TIDAK PERLU @Header("X-Api-Key") karena akses publik
+    ): Response<NewsListResponse>
+
     // 2. GET (Show - Detail Berita) - Akses Publik
     // Route: GET /api/news/{id} -> show
     @GET("news/{id}")
@@ -35,6 +48,14 @@ interface ApiNewsService {
     ): Response<SingleNewsResponse>
 
     // 4. POST (Update - Update Berita dengan Gambar/Multipart)
+    // Route: POST /api/news/news/{id} -> update
+    @POST("news/add/views/{id}")
+    suspend fun addViewNews(
+        // API Key diasumsikan ada di Interceptor
+        @Path("id") newsId: Int,
+    ): Response<SingleNewsResponse>
+
+
     // Route: POST /api/news/news/{id} -> update
     @Multipart
     @POST("news/post/{id}")
