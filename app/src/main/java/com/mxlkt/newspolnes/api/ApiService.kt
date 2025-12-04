@@ -2,21 +2,15 @@ package com.mxlkt.newspolnes.api
 
 import com.mxlkt.newspolnes.model.*
 import okhttp3.Interceptor
-import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
-import okhttp3.RequestBody
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
-import retrofit2.http.DELETE
 import retrofit2.http.GET
-import retrofit2.http.Multipart
 import retrofit2.http.POST
-import retrofit2.http.Part
 import retrofit2.http.Path
-import retrofit2.http.Query
 import java.util.concurrent.TimeUnit
 
 // Interface untuk endpoint API yang sudah ada (Users dan Auth)
@@ -90,7 +84,7 @@ object ApiClient {
             .build()
     }
 
-    // OkHttpClient untuk endpoint yang memerlukan API Key dan Auth Token (misalnya: POST News, DELETE News)
+    // OkHttpClient untuk endpoint yang memerlukan API Key dan Auth Token (misalnya: POST News, DELETE News, POST Comment)
     private val okHttpClientAuthenticated: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
@@ -128,20 +122,23 @@ object ApiClient {
     }
 
     // Instance ApiNewsService (untuk GET News yang publik)
-    // Karena GET News bersifat publik, kita bisa gunakan retrofitPublic
     val apiNewsServicePublic: ApiNewsService by lazy {
         retrofitPublic.create(ApiNewsService::class.java)
     }
 
     // Instance ApiNewsService (untuk POST/DELETE News yang terotentikasi)
-    // Untuk POST, PUT, DELETE, sebaiknya gunakan instance ini agar token terkirim
     val apiNewsService: ApiNewsService by lazy {
         retrofitAuthenticated.create(ApiNewsService::class.java)
     }
 
-    // Instance ApiCategoryService yang sudah ada
-    // Asumsi: Jika ApiCategoryService tidak memerlukan Token Otentikasi, gunakan retrofitPublic
+    // Instance ApiCategoryService
     val apiCategoryService: ApiCategoryService by lazy {
         retrofitPublic.create(ApiCategoryService::class.java)
+    }
+
+    // Instance ApiCommentService
+    // DIPERBAIKI: Menggunakan retrofitAuthenticated agar Token User terkirim saat POST Comment
+    val apiCommentService: ApiCommentService by lazy {
+        retrofitAuthenticated.create(ApiCommentService::class.java)
     }
 }

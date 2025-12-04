@@ -134,24 +134,24 @@ fun UserRoleChip(role: UserRole) {
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-private fun AdminUserCardPreview() {
-    NewsPolnesTheme {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Preview Editor
-            AdminUserCard(
-                user = User(1, "Editor Name", "editor@polnes.id", "pass", UserRole.EDITOR),
-                onEditClick = {}, onDeleteClick = {}
-            )
-            // Preview User Biasa
-            AdminUserCard(
-                user = User(2, "User Name", "user@gmail.com", "pass", UserRole.USER),
-                onEditClick = {}, onDeleteClick = {}
-            )
-        }
-    }
-}
+//@Preview(showBackground = true)
+//@Composable
+//private fun AdminUserCardPreview() {
+//    NewsPolnesTheme {
+//        Column(
+//            modifier = Modifier.padding(16.dp),
+//            verticalArrangement = Arrangement.spacedBy(12.dp)
+//        ) {
+//            // Preview Editor
+//            AdminUserCard(
+//                user = User(1, "Editor Name", "editor@polnes.id", "pass", UserRole.EDITOR),
+//                onEditClick = {}, onDeleteClick = {}
+//            )
+//            // Preview User Biasa
+//            AdminUserCard(
+//                user = User(2, "User Name", "user@gmail.com", "pass", UserRole.USER),
+//                onEditClick = {}, onDeleteClick = {}
+//            )
+//        }
+//    }
+//}

@@ -154,7 +154,7 @@ fun UserNavGraph(
             composable("MostRatedNews") {
                 MostRatedNewsScreen(
                     onNavigateBack = { userNavController.popBackStack() },
-                    onNewsClick = { newsId -> userNavController.navigate("NewsDetail/$newsId") }
+                    onNewsClick = { newsId -> userNavController.navigate("LiveNewsDetail/$newsId") }
                 )
             }
 

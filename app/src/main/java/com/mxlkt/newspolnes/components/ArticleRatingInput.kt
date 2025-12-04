@@ -3,7 +3,7 @@ package com.mxlkt.newspolnes.components
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.StarBorder // Gunakan StarBorder bawaan default
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -14,14 +14,16 @@ import androidx.compose.ui.unit.dp
 
 /**
  * Komponen input rating 5 bintang.
- * Sekarang mendukung tombol submit dan state hoisting.
+ * Mendukung tombol submit dan state hoisting.
+ * Updated: Mendukung mode Update vs Create.
  */
 @Composable
 fun ArticleRatingInput(
     modifier: Modifier = Modifier,
-    currentRating: Int,              // 🟢 Data rating diterima dari luar
-    onRatingSelected: (Int) -> Unit, // 🟢 Event saat bintang diklik
-    onSubmit: () -> Unit             // 🟢 Event saat tombol kirim diklik
+    currentRating: Int,              // Data rating saat ini
+    isUpdateMode: Boolean = false,   // TRUE jika user sudah pernah rating
+    onRatingSelected: (Int) -> Unit, // Event saat bintang diklik
+    onSubmit: () -> Unit             // Event saat tombol kirim diklik
 ) {
     Card(
         colors = CardDefaults.cardColors(
@@ -35,8 +37,9 @@ fun ArticleRatingInput(
             modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Ubah teks judul berdasarkan mode
             Text(
-                text = "Beri Rating Artikel Ini",
+                text = if (isUpdateMode) "Rating Anda" else "Beri Rating Artikel Ini",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -63,13 +66,14 @@ fun ArticleRatingInput(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // --- Tombol Kirim ---
+            // --- Tombol Kirim / Update ---
             Button(
                 onClick = onSubmit,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = currentRating > 0 // Tombol mati jika belum pilih bintang
             ) {
-                Text("Kirim Rating")
+                // Ubah teks tombol berdasarkan mode
+                Text(if (isUpdateMode) "Update Rating" else "Kirim Rating")
             }
         }
     }

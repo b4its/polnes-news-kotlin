@@ -15,8 +15,8 @@ import androidx.compose.ui.unit.dp
 import com.mxlkt.newspolnes.model.Comment
 
 /**
- * Displays an average rating summary for a given article,
- * based on a list of user comments with ratings.
+ * Menampilkan ringkasan rata-rata rating untuk artikel,
+ * berdasarkan daftar komentar user.
  */
 @Composable
 fun RatingSummary(
@@ -25,7 +25,7 @@ fun RatingSummary(
 ) {
     if (comments.isEmpty()) {
         Text(
-            text = "No ratings yet for this article.",
+            text = "Belum ada rating untuk artikel ini.",
             style = MaterialTheme.typography.bodyMedium,
             color = Color.Gray,
             modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -34,6 +34,7 @@ fun RatingSummary(
     }
 
     val totalRatings = comments.size
+    // Menghitung rata-rata, pastikan tidak dibagi 0 (handled by isEmpty check above)
     val averageRating = comments.sumOf { it.rating }.toFloat() / totalRatings
 
     Card(
@@ -49,7 +50,7 @@ fun RatingSummary(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Average number
+            // Angka Rata-rata
             Column {
                 Text(
                     text = "%.1f".format(averageRating),
@@ -57,13 +58,13 @@ fun RatingSummary(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Based on $totalRatings ratings",
+                    text = "Dari $totalRatings ulasan",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray
                 )
             }
 
-            // Star visualization
+            // Visualisasi Bintang Rata-rata
             Row {
                 (1..5).forEach { index ->
                     val icon = when {

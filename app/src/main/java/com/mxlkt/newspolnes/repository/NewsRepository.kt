@@ -25,6 +25,36 @@ class NewsRepository(
         throw Exception("Gagal memuat daftar berita: ${response.code()}")
     }
 
+    suspend fun getRecentViewFirst(): SingleNewsResponse {
+        val response = apiNewsServicePublic.getRecentViewFirst()
+        if (response.isSuccessful && response.body() != null) {
+            return response.body()!!
+        }
+        throw Exception("Gagal memuat berita terbaru pertama: ${response.code()}")
+    }
+
+    /**
+     * Mengambil Berita Paling Banyak Dilihat (Most Viewed) pertama (tunggal).
+     */
+    suspend fun getMostViewedFirst(): SingleNewsResponse {
+        val response = apiNewsServicePublic.getMostViewedFirst()
+        if (response.isSuccessful && response.body() != null) {
+            return response.body()!!
+        }
+        throw Exception("Gagal memuat berita paling banyak dilihat pertama: ${response.code()}")
+    }
+
+    /**
+     * Mengambil Berita Paling Banyak Dirating (Most Rated) pertama (tunggal).
+     */
+    suspend fun getMostRatedFirst(): SingleNewsResponse {
+        val response = apiNewsServicePublic.getMostRatedFirst()
+        if (response.isSuccessful && response.body() != null) {
+            return response.body()!!
+        }
+        throw Exception("Gagal memuat berita paling banyak dirating pertama: ${response.code()}")
+    }
+
     // 1. GET Daftar Berita (Publik)
     suspend fun getMostViewedList(page: Int = 1): NewsListResponse {
         val response = apiNewsServicePublic.getMostViewedList(page)

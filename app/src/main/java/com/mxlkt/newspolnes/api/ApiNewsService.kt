@@ -30,6 +30,17 @@ interface ApiNewsService {
 
     // 2. GET (Show - Detail Berita) - Akses Publik
     // Route: GET /api/news/{id} -> show
+    @GET("news/get/recent_news/first")
+    suspend fun getRecentViewFirst(): Response<SingleNewsResponse>
+
+    @GET("news/get/most_view/first")
+    suspend fun getMostViewedFirst(): Response<SingleNewsResponse>
+
+    @GET("news/get/most_rated/first")
+    suspend fun getMostRatedFirst(): Response<SingleNewsResponse>
+
+    // 2. GET (Show - Detail Berita) - Akses Publik
+    // Route: GET /api/news/{id} -> show
     @GET("news/{id}")
     suspend fun getNewsDetail(
         @Path("id") newsId: Int
@@ -46,7 +57,7 @@ interface ApiNewsService {
 
     // 3. POST (Store - Tambah Berita) - Mengirim data JSON saja (tanpa file gambar)
     // Route: POST /api/news/news/ -> store
-    // Catatan: Route Laravel memiliki '/news/' tambahan. Saya sesuaikan di sini.
+   // Catatan: Route Laravel memiliki '/news/' tambahan. Saya sesuaikan di sini.
     @POST("news/post")
     suspend fun createNews(
         // API Key diasumsikan ada di Interceptor

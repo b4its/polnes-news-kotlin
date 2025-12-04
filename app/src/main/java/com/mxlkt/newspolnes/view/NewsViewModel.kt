@@ -26,6 +26,17 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
     private val _newsDetail = MutableLiveData<NewsModel?>()
     val newsDetail: LiveData<NewsModel?> = _newsDetail
 
+    // � LIVE DATA BARU UNTUK BERITA TUNGGAL PERTAMA
+    private val _recentNewsFirst = MutableLiveData<NewsModel?>()
+    val recentNewsFirst: LiveData<NewsModel?> = _recentNewsFirst
+
+    private val _mostViewedFirst = MutableLiveData<NewsModel?>()
+    val mostViewedFirst: LiveData<NewsModel?> = _mostViewedFirst
+
+    private val _mostRatedFirst = MutableLiveData<NewsModel?>()
+    val mostRatedFirst: LiveData<NewsModel?> = _mostRatedFirst
+    // -----------------------------------------------------
+
     // State Loading
     private val _isLoading = MutableLiveData(false)
     val isLoading: LiveData<Boolean> = _isLoading
@@ -71,7 +82,7 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Memuat daftar berita dari API (dengan pagination)
+     * Memuat daftar berita paling banyak dilihat dari API (dengan pagination)
      */
     fun fetchNewsMostViewedList(page: Int = 1) {
         _isLoading.value = true
@@ -96,14 +107,14 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Memuat daftar berita dari API (dengan pagination)
+     * Memuat daftar berita paling banyak dirating dari API (dengan pagination)
      */
     fun fetchNewsMostRatedList(page: Int = 1) {
         _isLoading.value = true
         _errorMessage.value = null
         viewModelScope.launch {
             try {
-                val response = repository.getNewsList(page)
+                val response = repository.getMostRatedList(page)
                 // Jika halaman 1, ganti list. Jika halaman > 1, tambahkan ke list yang sudah ada.
                 if (page == 1) {
                     _newsList.value = response.data.data
@@ -119,6 +130,63 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    // � FUNGSI BARU UNTUK MENGAMBIL BERITA TUNGGAL PERTAMA �
+
+    /**
+     * Mengambil Berita Terbaru (Recent) pertama (tunggal).
+     */
+    fun fetchRecentViewFirst() {
+        _isLoading.value = true
+        _errorMessage.value = null
+        viewModelScope.launch {
+            try {
+                val response = repository.getRecentViewFirst()
+                _recentNewsFirst.value = response.data
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal memuat berita terbaru: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Mengambil Berita Paling Banyak Dilihat (Most Viewed) pertama (tunggal).
+     */
+    fun fetchMostViewedFirst() {
+        _isLoading.value = true
+        _errorMessage.value = null
+        viewModelScope.launch {
+            try {
+                val response = repository.getMostViewedFirst()
+                _mostViewedFirst.value = response.data
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal memuat berita paling dilihat: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Mengambil Berita Paling Banyak Dirating (Most Rated) pertama (tunggal).
+     */
+    fun fetchMostRatedFirst() {
+        _isLoading.value = true
+        _errorMessage.value = null
+        viewModelScope.launch {
+            try {
+                val response = repository.getMostRatedFirst()
+                _mostRatedFirst.value = response.data
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal memuat berita paling dirating: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+    // -----------------------------------------------------
 
     /**
      * Memuat detail berita berdasarkan ID
@@ -142,9 +210,6 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Membuat berita baru (tanpa gambar)
      */
-
-
-
     fun createNews(request: NewsCreateRequest) {
         _isLoading.value = true
         _errorMessage.value = null

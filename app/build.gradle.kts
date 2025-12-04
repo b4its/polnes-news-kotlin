@@ -19,9 +19,20 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("/home/markx/AndroidStudioProjects/MyCities/keystore.jks")
+            storePassword = "ken123"
+            keyAlias = "markx-tech"
+            keyPassword = "ken123"
+        }
+    }
+    
     buildTypes {
-        release {
+        getByName("release") {
             isMinifyEnabled = false
+            isShrinkResources = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

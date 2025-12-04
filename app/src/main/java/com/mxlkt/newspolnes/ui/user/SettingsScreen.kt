@@ -38,7 +38,11 @@ fun SettingsScreen(
     // � REVISI: Ambil data user yang sedang LOGIN dari AuthViewModel (Flow/DataStore)
     val currentUserName by authViewModel.userName.collectAsState(initial = "Guest User")
     val currentUserRoleString by authViewModel.userRole.collectAsState(initial = "GUEST")
-
+// 💡 Implementasi fungsi logout
+    val performLogout: () -> Unit = {
+        authViewModel.logout() // Panggil fungsi logout di ViewModel
+        onLogout()             // Panggil callback navigasi (misalnya, navigasi ke layar Login)
+    }
     // Format Role
     val displayRole = currentUserRoleString?.lowercase()?.replaceFirstChar { char -> char.uppercase() }
 
@@ -89,7 +93,7 @@ fun SettingsScreen(
         SettingsButton(
             text = "Logout",
             icon = Icons.Outlined.Logout,
-            onClick = onLogout
+            onClick = performLogout
         )
     }
 }
