@@ -126,9 +126,9 @@ fun NewsDetailScreen(
                     Spacer(modifier = Modifier.height(24.dp))
                     Text(text = "Video", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 16.dp))
                     VideoThumbnailCard(
-                        youtubeVideoId = news.youtubeVideoId,
+                        thumbnailCard = "abc",
                         onClick = {
-                            val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/watch?v=${news.youtubeVideoId}"))
+                            val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("abc"))
                             context.startActivity(webIntent)
                         },
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)

@@ -22,6 +22,7 @@ data class NewsModel(
     val contents: String,
     val authorId: Int,
     val views: Int,
+    val thumbnail: String?, // Bisa null
     val linkYoutube: String?, // Bisa null
     val status: String,
     val created_at: String,

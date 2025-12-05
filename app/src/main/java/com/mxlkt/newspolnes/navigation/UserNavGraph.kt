@@ -88,7 +88,7 @@ fun UserNavGraph(
                     onViewAllRecent = { userNavController.navigate("RecentNews") },
                     onViewAllMostViewed = { userNavController.navigate("MostViewedNews") },
                     onViewAllMostRated = { userNavController.navigate("MostRatedNews") },
-                    onNewsClick = { newsId -> userNavController.navigate("NewsDetail/$newsId") }
+                    onNewsClick = { newsId -> userNavController.navigate("LiveNewsDetail/$newsId") }
                 )
             }
 

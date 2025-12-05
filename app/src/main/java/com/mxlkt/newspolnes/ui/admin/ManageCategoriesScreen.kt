@@ -92,30 +92,9 @@ fun ManageCategoriesScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            TitleOnlyTopAppBar(title = "Manage Categories")
-        },
-        bottomBar = {
-            AdminBottomNav(
-                currentRoute = "Categories", // Asumsi rute
-                onItemClick = {} // Navigasi Admin
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddCategoryClick,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = Color.White,
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Category")
-            }
-        }
-    ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
         ) {
 
             // Tampilkan indikator loading di tengah
@@ -165,7 +144,7 @@ fun ManageCategoriesScreen(
             }
         }
     }
-}
+
 
 // --- Preview (Menggunakan Dummy Data jika perlu) ---
 

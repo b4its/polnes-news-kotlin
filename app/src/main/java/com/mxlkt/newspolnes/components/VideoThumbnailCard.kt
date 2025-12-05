@@ -27,7 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
  */
 @Composable
 fun VideoThumbnailCard(
-    youtubeVideoId: String,
+    thumbnailCard: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -35,8 +35,6 @@ fun VideoThumbnailCard(
     // mqdefault.jpg = Medium Quality (320x180)
     // hqdefault.jpg = High Quality (480x360)
     // 0.jpg atau maxresdefault.jpg = Kualitas tertinggi
-    val thumbnailUrl = "https://img.youtube.com/vi/$youtubeVideoId/mqdefault.jpg"
-
     Card(
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(4.dp),
@@ -51,7 +49,11 @@ fun VideoThumbnailCard(
         ) {
             // 1. Thumbnail (diload dari URL pakai Coil)
             AsyncImage(
-                model = thumbnailUrl,
+                model = if (thumbnailCard.isEmpty()) {
+                    "https://www.internetcepat.id/wp-content/uploads/2023/12/20602785_6325254-scaled-1.jpg"
+                } else {
+                "https://polnes-news.b4its.tech/public/${thumbnailCard}"
+            },
                 contentDescription = "Video Thumbnail",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
@@ -83,15 +85,15 @@ fun VideoThumbnailCard(
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun VideoThumbnailCardPreview() {
-    NewsPolnesTheme {
-        Box(modifier = Modifier.padding(16.dp)) {
-            VideoThumbnailCard(
-                youtubeVideoId = "dQw4w9WgXcQ", // ID Rick Astley
-                onClick = {}
-            )
-        }
-    }
-}
+//@Preview(showBackground = true)
+//@Composable
+//fun VideoThumbnailCardPreview() {
+//    NewsPolnesTheme {
+//        Box(modifier = Modifier.padding(16.dp)) {
+//            VideoThumbnailCard(
+//                youtubeVideoId = "dQw4w9WgXcQ", // ID Rick Astley
+//                onClick = {}
+//            )
+//        }
+//    }
+//}
