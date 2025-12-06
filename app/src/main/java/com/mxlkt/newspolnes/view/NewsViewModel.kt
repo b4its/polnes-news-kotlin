@@ -210,23 +210,31 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Membuat berita baru (tanpa gambar)
      */
-    fun createNews(request: NewsCreateRequest) {
+// Tambahkan parameter imageFile: File?
+    fun createNews(request: NewsCreateRequest, imageFile: File?) {
         _isLoading.value = true
         _errorMessage.value = null
         _successMessage.value = null
+
         viewModelScope.launch {
             try {
-                val response = repository.createNews(request)
+                // PERBAIKAN:
+                // Karena di langkah sebelumnya kita mendefinisikan Repository sebagai:
+                // createNews(request: NewsCreateRequest, imageFile: File?)
+                // Maka kita cukup mengirim object request & file saja.
+
+                val response = repository.createNews(request, imageFile)
+
                 _successMessage.value = response.message ?: "Berita berhasil dibuat!"
-                // Opsional: Lakukan refresh list atau navigasi
+
             } catch (e: Exception) {
                 _errorMessage.value = "Gagal membuat berita: ${e.message}"
+                e.printStackTrace()
             } finally {
                 _isLoading.value = false
             }
         }
     }
-
     /**
      * Memperbarui berita (dengan/tanpa gambar)
      * Menggunakan overload dengan parameter eksplisit agar mudah dipanggil dari UI
@@ -295,6 +303,8 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+
 
     /**
      * Menghapus berita

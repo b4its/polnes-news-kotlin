@@ -70,7 +70,11 @@ fun ArticleCard(
                 // 1. Gambar Thumbnail
                 // � PERUBAHAN 3: Menggunakan AsyncImage untuk memuat URL gambar
                 AsyncImage(
-                    model = article.gambar,
+                    model = if (article.gambar.isNullOrEmpty()) {
+                        "https://www.internetcepat.id/wp-content/uploads/2023/12/20602785_6325254-scaled-1.jpg"
+                    } else {
+                        "https://polnes-news.b4its.tech/public/${article.gambar}"
+                    },
                     contentDescription = article.title,
                     contentScale = ContentScale.Crop,
                     placeholder = painterResource(id = R.drawable.category_economy),

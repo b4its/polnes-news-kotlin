@@ -115,4 +115,7 @@ dependencies {
     // Untuk DataStore Preferences
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
+    // rich editor
+    implementation("com.mohamedrejeb.richeditor:richeditor-compose:1.0.0-rc10")
+
 }

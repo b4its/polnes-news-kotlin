@@ -85,14 +85,45 @@ class NewsRepository(
     }
 
     // 3. POST Buat Berita Baru (Terotentikasi) - Tanpa Gambar
-    suspend fun createNews(request: NewsCreateRequest): SingleNewsResponse {
-        val response = apiNewsServices.createNews(request)
+    suspend fun createNews(request: NewsCreateRequest, imageFile: File?): SingleNewsResponse {
+
+        // 1. Konversi String/Int ke RequestBody
+        val titleRB = request.title.toRequestBody("text/plain".toMediaTypeOrNull())
+        val contentRB = request.content.toRequestBody("text/plain".toMediaTypeOrNull())
+        val categoryIdRB = request.categoryId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+        val authorIdRB = request.authorId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+
+        val statusRB = (request.status ?: "draft").toRequestBody("text/plain".toMediaTypeOrNull())
+
+        val youtubeRB = if (!request.linkYoutube.isNullOrBlank()) {
+            request.linkYoutube.toRequestBody("text/plain".toMediaTypeOrNull())
+        } else null
+
+        // 2. Konversi File ke MultipartBody.Part
+        var imagePart: MultipartBody.Part? = null
+        if (imageFile != null) {
+            val requestFile = imageFile.asRequestBody("media/gambar/temp/*".toMediaTypeOrNull())
+            // PENTING: String "gambar" di sini harus sama dengan validasi PHP: 'gambar' => 'required|image'
+            imagePart = MultipartBody.Part.createFormData("gambar", imageFile.name, requestFile)
+        }
+
+        // 3. Panggil API dengan parameter yang sudah dipecah
+        val response = apiNewsServices.createNews(
+            title = titleRB,
+            content = contentRB,
+            categoryId = categoryIdRB,
+            authorId = authorIdRB,
+            linkYoutube = youtubeRB,
+            status = statusRB,
+            gambar = imagePart
+        )
+
         if (response.isSuccessful && response.body() != null) {
             return response.body()!!
         }
-        throw Exception("Gagal membuat berita: ${response.code()}")
-    }
 
+        throw Exception("Gagal: ${response.code()} ${response.message()}")
+    }
     suspend fun addViews(newsId: Int): SingleNewsResponse {
         val response = apiNewsServices.addViewNews(newsId = newsId)
 
