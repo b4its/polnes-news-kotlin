@@ -56,9 +56,15 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
 
     // --- Fungsi API ---
 
+
+
     /**
      * Memuat daftar berita dari API (dengan pagination)
      */
+
+
+
+
     fun fetchNewsList(page: Int = 1) {
         _isLoading.value = true
         _errorMessage.value = null
@@ -81,15 +87,67 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /**
-     * Memuat daftar berita paling banyak dilihat dari API (dengan pagination)
-     */
-    fun fetchNewsMostViewedList(page: Int = 1) {
+
+
+
+    fun fetchPublishedNewsList(page: Int = 1) {
         _isLoading.value = true
         _errorMessage.value = null
         viewModelScope.launch {
             try {
-                val response = repository.getMostViewedList(page)
+                val response = repository.getNewsPublished(page)
+                // Jika halaman 1, ganti list. Jika halaman > 1, tambahkan ke list yang sudah ada.
+                if (page == 1) {
+                    _newsList.value = response.data.data
+                } else {
+                    val currentList = _newsList.value.orEmpty().toMutableList()
+                    currentList.addAll(response.data.data)
+                    _newsList.value = currentList
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal memuat berita: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+
+
+
+    /**
+     * Memuat daftar berita paling banyak dilihat dari API (dengan pagination)
+     */
+
+
+    fun fetchNewsMostViewedLongList(page: Int = 1) {
+        _isLoading.value = true
+        _errorMessage.value = null
+        viewModelScope.launch {
+            try {
+                val response = repository.getMostViewedLongList(page)
+                // Jika halaman 1, ganti list. Jika halaman > 1, tambahkan ke list yang sudah ada.
+                if (page == 1) {
+                    _newsList.value = response.data.data
+                } else {
+                    val currentList = _newsList.value.orEmpty().toMutableList()
+                    currentList.addAll(response.data.data)
+                    _newsList.value = currentList
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal memuat berita: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun fetchNewsMostViewedShortList(page: Int = 1) {
+        _isLoading.value = true
+        _errorMessage.value = null
+        viewModelScope.launch {
+            try {
+                val response = repository.getMostViewedShortList(page)
                 // Jika halaman 1, ganti list. Jika halaman > 1, tambahkan ke list yang sudah ada.
                 if (page == 1) {
                     _newsList.value = response.data.data
@@ -109,12 +167,37 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Memuat daftar berita paling banyak dirating dari API (dengan pagination)
      */
-    fun fetchNewsMostRatedList(page: Int = 1) {
+
+
+    fun fetchNewsMostRatedLongList(page: Int = 1) {
         _isLoading.value = true
         _errorMessage.value = null
         viewModelScope.launch {
             try {
-                val response = repository.getMostRatedList(page)
+                val response = repository.getMostRatedLongList(page)
+                // Jika halaman 1, ganti list. Jika halaman > 1, tambahkan ke list yang sudah ada.
+                if (page == 1) {
+                    _newsList.value = response.data.data
+                } else {
+                    val currentList = _newsList.value.orEmpty().toMutableList()
+                    currentList.addAll(response.data.data)
+                    _newsList.value = currentList
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal memuat berita: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+
+    fun fetchNewsMostRatedShortList(page: Int = 1) {
+        _isLoading.value = true
+        _errorMessage.value = null
+        viewModelScope.launch {
+            try {
+                val response = repository.getMostRatedShortList(page)
                 // Jika halaman 1, ganti list. Jika halaman > 1, tambahkan ke list yang sudah ada.
                 if (page == 1) {
                     _newsList.value = response.data.data
@@ -211,7 +294,7 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
      * Membuat berita baru (tanpa gambar)
      */
 // Tambahkan parameter imageFile: File?
-    fun createNews(request: NewsCreateRequest, imageFile: File?) {
+    fun createNews(request: NewsCreateRequest, imageFile: File?, thumbnailFile: File?) {
         _isLoading.value = true
         _errorMessage.value = null
         _successMessage.value = null
@@ -223,7 +306,7 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
                 // createNews(request: NewsCreateRequest, imageFile: File?)
                 // Maka kita cukup mengirim object request & file saja.
 
-                val response = repository.createNews(request, imageFile)
+                val response = repository.createNews(request, imageFile, thumbnailFile)
 
                 _successMessage.value = response.message ?: "Berita berhasil dibuat!"
 
@@ -235,6 +318,8 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+
     /**
      * Memperbarui berita (dengan/tanpa gambar)
      * Menggunakan overload dengan parameter eksplisit agar mudah dipanggil dari UI
@@ -283,19 +368,20 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
         categoryId: Int?,
         linkYoutube: String?,
         status: String?,
-        imageFile: File?
+        imageFile: File?,
+        thumbnailFile: File? // <--- TAMBAHKAN PARAMETER INI
     ) {
         _isLoading.value = true
         _errorMessage.value = null
         _successMessage.value = null
         viewModelScope.launch {
             try {
+                // Teruskan thumbnailFile ke repository
                 val response = repository.updateNews(
-                    newsId, title, content, authorId, categoryId, linkYoutube, status, imageFile
+                    newsId, title, content, authorId, categoryId, linkYoutube, status, imageFile, thumbnailFile
                 )
                 _successMessage.value = response.message ?: "Berita berhasil diperbarui!"
-                // Opsional: Lakukan refresh detail
-                _newsDetail.value = response.data // Perbarui detail
+                _newsDetail.value = response.data
             } catch (e: Exception) {
                 _errorMessage.value = "Gagal memperbarui berita: ${e.message}"
             } finally {

@@ -15,15 +15,33 @@ interface ApiNewsService {
         // TIDAK PERLU @Header("X-Api-Key") karena akses publik
     ): Response<NewsListResponse>
 
+    @GET("news/get/published")
+    suspend fun getNewsPublished(
+        @Query("page") page: Int = 1 // Untuk pagination
+        // TIDAK PERLU @Header("X-Api-Key") karena akses publik
+    ): Response<NewsListResponse>
+
     @GET("news/get/most_view/long")
-    suspend fun getMostViewedList(
+    suspend fun getMostViewedLongList(
+        @Query("page") page: Int = 1 // Untuk pagination
+        // TIDAK PERLU @Header("X-Api-Key") karena akses publik
+    ): Response<NewsListResponse>
+
+    @GET("news/get/most_view/short")
+    suspend fun getMostViewedShortList(
         @Query("page") page: Int = 1 // Untuk pagination
         // TIDAK PERLU @Header("X-Api-Key") karena akses publik
     ): Response<NewsListResponse>
 
 
     @GET("news/get/most_rated/long")
-    suspend fun getMostRatedList(
+    suspend fun getMostRatedLongList(
+        @Query("page") page: Int = 1 // Untuk pagination
+        // TIDAK PERLU @Header("X-Api-Key") karena akses publik
+    ): Response<NewsListResponse>
+
+    @GET("news/get/most_rated/short")
+    suspend fun getMostRatedShortList(
         @Query("page") page: Int = 1 // Untuk pagination
         // TIDAK PERLU @Header("X-Api-Key") karena akses publik
     ): Response<NewsListResponse>
@@ -72,7 +90,8 @@ interface ApiNewsService {
         // Bagian File Gambar (MultipartBody.Part)
         // Note: Nama "gambar" diatur saat membuat MultipartBody di Repository,
         // bukan di anotasi @Part ini untuk file.
-        @Part gambar: MultipartBody.Part?
+        @Part gambar: MultipartBody.Part?,
+        @Part thumbnail: MultipartBody.Part?
     ): Response<SingleNewsResponse>
 
     // 4. POST (Update - Update Berita dengan Gambar/Multipart)
@@ -88,16 +107,15 @@ interface ApiNewsService {
     @Multipart
     @POST("news/post/{id}")
     suspend fun updateNews(
-        // API Key diasumsikan ada di Interceptor
         @Path("id") newsId: Int,
-        // Semua data non-file harus dikirim sebagai RequestBody (untuk Multipart)
         @Part("title") title: RequestBody,
         @Part("contents") content: RequestBody,
         @Part("authorId") authorId: RequestBody,
-        @Part("categoryId") categoryId: RequestBody?, // Tambahan
-        @Part("linkYoutube") linkYoutube: RequestBody?, // Tambahan
-        @Part("status") status: RequestBody?, // Tambahan
-        @Part image: MultipartBody.Part? // File Gambar
+        @Part("categoryId") categoryId: RequestBody?,
+        @Part("linkYoutube") linkYoutube: RequestBody?,
+        @Part("status") status: RequestBody?,
+        @Part image: MultipartBody.Part?, // File Gambar Utama
+        @Part thumbnail: MultipartBody.Part? // <--- TAMBAHKAN INI
     ): Response<SingleNewsResponse>
 
     // 5. DELETE (Destroy - Hapus Berita)

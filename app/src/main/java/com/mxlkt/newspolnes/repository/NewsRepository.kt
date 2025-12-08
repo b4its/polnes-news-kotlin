@@ -25,6 +25,16 @@ class NewsRepository(
         throw Exception("Gagal memuat daftar berita: ${response.code()}")
     }
 
+    // 1. GET Daftar Berita (Publik)
+    suspend fun getNewsPublished(page: Int = 1): NewsListResponse {
+        val response = apiNewsServicePublic.getNewsPublished(page)
+        if (response.isSuccessful && response.body() != null) {
+            return response.body()!!
+        }
+        // Melempar exception jika respons gagal
+        throw Exception("Gagal memuat daftar berita: ${response.code()}")
+    }
+
     suspend fun getRecentViewFirst(): SingleNewsResponse {
         val response = apiNewsServicePublic.getRecentViewFirst()
         if (response.isSuccessful && response.body() != null) {
@@ -56,8 +66,8 @@ class NewsRepository(
     }
 
     // 1. GET Daftar Berita (Publik)
-    suspend fun getMostViewedList(page: Int = 1): NewsListResponse {
-        val response = apiNewsServicePublic.getMostViewedList(page)
+    suspend fun getMostViewedLongList(page: Int = 1): NewsListResponse {
+        val response = apiNewsServicePublic.getMostViewedLongList(page)
         if (response.isSuccessful && response.body() != null) {
             return response.body()!!
         }
@@ -66,8 +76,27 @@ class NewsRepository(
     }
 
     // 1. GET Daftar Berita (Publik)
-    suspend fun getMostRatedList(page: Int = 1): NewsListResponse {
-        val response = apiNewsServicePublic.getMostRatedList(page)
+    suspend fun getMostViewedShortList(page: Int = 1): NewsListResponse {
+        val response = apiNewsServicePublic.getMostViewedShortList(page)
+        if (response.isSuccessful && response.body() != null) {
+            return response.body()!!
+        }
+        // Melempar exception jika respons gagal
+        throw Exception("Gagal memuat daftar berita: ${response.code()}")
+    }
+
+    // 1. GET Daftar Berita (Publik)
+    suspend fun getMostRatedLongList(page: Int = 1): NewsListResponse {
+        val response = apiNewsServicePublic.getMostRatedLongList(page)
+        if (response.isSuccessful && response.body() != null) {
+            return response.body()!!
+        }
+        // Melempar exception jika respons gagal
+        throw Exception("Gagal memuat daftar berita: ${response.code()}")
+    }
+    // 1. GET Daftar Berita (Publik)
+    suspend fun getMostRatedShortList(page: Int = 1): NewsListResponse {
+        val response = apiNewsServicePublic.getMostRatedShortList(page)
         if (response.isSuccessful && response.body() != null) {
             return response.body()!!
         }
@@ -83,31 +112,42 @@ class NewsRepository(
         }
         throw Exception("Gagal memuat detail berita: ${response.code()}")
     }
+    // 3. POST Buat Berita Baru (Terotentikasi) - Dengan Gambar & Thumbnail
+    suspend fun createNews(
+        request: NewsCreateRequest,
+        imageFile: File?,
+        thumbnailFile: File?
+    ): SingleNewsResponse {
 
-    // 3. POST Buat Berita Baru (Terotentikasi) - Tanpa Gambar
-    suspend fun createNews(request: NewsCreateRequest, imageFile: File?): SingleNewsResponse {
-
-        // 1. Konversi String/Int ke RequestBody
+        // 1. Konversi Teks ke RequestBody
         val titleRB = request.title.toRequestBody("text/plain".toMediaTypeOrNull())
         val contentRB = request.content.toRequestBody("text/plain".toMediaTypeOrNull())
         val categoryIdRB = request.categoryId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
         val authorIdRB = request.authorId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
 
-        val statusRB = (request.status ?: "draft").toRequestBody("text/plain".toMediaTypeOrNull())
+        // PENTING: Paksa ke Uppercase agar sesuai validasi Laravel "in:DRAFT,PUBLISHED"
+        val safeStatus = (request.status ?: "DRAFT").uppercase()
+        val statusRB = safeStatus.toRequestBody("text/plain".toMediaTypeOrNull())
 
         val youtubeRB = if (!request.linkYoutube.isNullOrBlank()) {
             request.linkYoutube.toRequestBody("text/plain".toMediaTypeOrNull())
         } else null
 
-        // 2. Konversi File ke MultipartBody.Part
+        // 2. Proses File Gambar Utama
         var imagePart: MultipartBody.Part? = null
         if (imageFile != null) {
-            val requestFile = imageFile.asRequestBody("media/gambar/temp/*".toMediaTypeOrNull())
-            // PENTING: String "gambar" di sini harus sama dengan validasi PHP: 'gambar' => 'required|image'
+            val requestFile = imageFile.asRequestBody("image/*".toMediaTypeOrNull())
             imagePart = MultipartBody.Part.createFormData("gambar", imageFile.name, requestFile)
         }
 
-        // 3. Panggil API dengan parameter yang sudah dipecah
+        // 3. Proses File Thumbnail
+        var thumbnailPart: MultipartBody.Part? = null
+        if (thumbnailFile != null) {
+            val requestThumbnail = thumbnailFile.asRequestBody("image/*".toMediaTypeOrNull())
+            thumbnailPart = MultipartBody.Part.createFormData("thumbnail", thumbnailFile.name, requestThumbnail)
+        }
+
+        // 4. Kirim Request
         val response = apiNewsServices.createNews(
             title = titleRB,
             content = contentRB,
@@ -115,15 +155,17 @@ class NewsRepository(
             authorId = authorIdRB,
             linkYoutube = youtubeRB,
             status = statusRB,
-            gambar = imagePart
+            gambar = imagePart,
+            thumbnail = thumbnailPart
         )
 
         if (response.isSuccessful && response.body() != null) {
             return response.body()!!
         }
 
-        throw Exception("Gagal: ${response.code()} ${response.message()}")
+        throw Exception("Gagal Create: ${response.code()} ${response.message()}")
     }
+
     suspend fun addViews(newsId: Int): SingleNewsResponse {
         val response = apiNewsServices.addViewNews(newsId = newsId)
 
@@ -147,7 +189,8 @@ class NewsRepository(
         categoryId: Int?,
         linkYoutube: String?,
         status: String?,
-        imageFile: File? // File gambar, bisa null
+        imageFile: File?,
+        thumbnailFile: File?// File gambar, bisa null
     ): SingleNewsResponse {
         // Konversi data ke RequestBody
         val titlePart = title.toRequestBody("text/plain".toMediaTypeOrNull())
@@ -159,15 +202,17 @@ class NewsRepository(
         val linkYoutubePart = linkYoutube?.toRequestBody("text/plain".toMediaTypeOrNull())
         val statusPart = status?.toRequestBody("text/plain".toMediaTypeOrNull())
 
-        // Bagian Multipart untuk gambar (jika ada)
+        // Bagian Multipart untuk GAMBAR UTAMA
         val imagePart = imageFile?.let { file ->
             val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
-            // Nama field: "gambar" sesuai API yang umum (asumsi)
-            // Namun, di ApiNewsService, nama parameternya adalah `image: MultipartBody.Part?`
-            // dan Retrofit akan menggunakan nama parameter (kecuali ditimpa).
-            // Saya asumsikan nama field di API adalah "gambar" atau "image"
-            // Mari kita gunakan "gambar" (sesuai NewsModel)
             MultipartBody.Part.createFormData("gambar", file.name, requestFile)
+        }
+
+        // Bagian Multipart untuk THUMBNAIL (LOGIKA BARU)
+        val thumbnailPart = thumbnailFile?.let { file ->
+            val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
+            // Pastikan key "thumbnail" sesuai dengan backend PHP
+            MultipartBody.Part.createFormData("thumbnail", file.name, requestFile)
         }
 
         val response = apiNewsServices.updateNews(
@@ -178,7 +223,8 @@ class NewsRepository(
             categoryId = categoryIdPart,
             linkYoutube = linkYoutubePart,
             status = statusPart,
-            image = imagePart
+            image = imagePart,
+            thumbnail = thumbnailPart // <--- KIRIM KE API
         )
 
         if (response.isSuccessful && response.body() != null) {

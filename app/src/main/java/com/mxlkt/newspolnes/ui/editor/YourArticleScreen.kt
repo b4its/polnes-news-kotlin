@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CornerSize
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -24,9 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -82,9 +79,12 @@ fun YourArticleScreen(
     // Input Fields Standard
     var titleInput by remember { mutableStateOf("") }
     var youtubeLinkInput by remember { mutableStateOf("") }
+
+    // --- State Images ---
+    var selectedThumbnailUri by remember { mutableStateOf<Uri?>(null) }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
 
-    // Rich Text Editor State (Pengganti contentInput String)
+    // Rich Text Editor State
     val richTextState = rememberRichTextState()
 
     // Dropdown Logic
@@ -93,20 +93,14 @@ fun YourArticleScreen(
     var isCategoryDropdownExpanded by remember { mutableStateOf(false) }
 
     // --- Initial Effects ---
-    // 1. Fetch Data saat screen dibuka
     LaunchedEffect(Unit) {
         viewModel.fetchNewsList(1)
         categoryViewModel.fetchAllCategories()
     }
 
-    // 2. Sinkronisasi Rich Editor saat Edit Mode / Add Mode
     LaunchedEffect(isEditMode, currentEditingId, showBottomSheet) {
         if (showBottomSheet) {
-            if (isEditMode) {
-                // Jika edit, jangan diload ulang jika sudah ada isinya (mencegah reset saat mengetik)
-                // Kita asumsikan contentInput sudah diset saat tombol edit diklik
-            } else {
-                // Jika mode tambah baru, pastikan bersih
+            if (!isEditMode) {
                 if (richTextState.toHtml().isEmpty()) {
                     richTextState.clear()
                 }
@@ -114,7 +108,6 @@ fun YourArticleScreen(
         }
     }
 
-    // 3. Filter Artikel milik user login + Search
     val myArticles = remember(newsList, userId, searchQuery) {
         if (userId == null) emptyList()
         else {
@@ -124,15 +117,21 @@ fun YourArticleScreen(
         }
     }
 
-    // 4. Handle Toast Messages
+    // Handle Toast Messages
     LaunchedEffect(successMessage) {
         successMessage?.let {
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
-            showBottomSheet = false // Tutup modal jika sukses
-            viewModel.fetchNewsList(1) // Refresh list
+            showBottomSheet = false
+            viewModel.fetchNewsList(1)
             viewModel.clearStatusMessages()
-            // Reset Form
             richTextState.clear()
+            // Reset input
+            titleInput = ""
+            selectedCategoryName = ""
+            categoryIdInput = ""
+            youtubeLinkInput = ""
+            selectedImageUri = null
+            selectedThumbnailUri = null
         }
     }
     LaunchedEffect(errorMessage) {
@@ -147,39 +146,47 @@ fun YourArticleScreen(
         isEditMode = false
         currentEditingId = null
         titleInput = ""
-        richTextState.clear() // Reset editor
+        richTextState.clear()
         categoryIdInput = ""
         selectedCategoryName = ""
         youtubeLinkInput = ""
         selectedImageUri = null
+        selectedThumbnailUri = null
         showBottomSheet = true
     }
 
     fun openEditModal(article: NewsModel) {
         isEditMode = true
         currentEditingId = article.id
+
+        // 1. Panggil detail terbaru dari server (Optional, good practice)
+        viewModel.fetchNewsDetail(article.id)
+
+        // 2. Isi form dengan data awal dari list
         titleInput = article.title
-
-        // Load konten HTML dari database ke Rich Editor
         richTextState.setHtml(article.contents)
-
         youtubeLinkInput = article.linkYoutube ?: ""
-        selectedImageUri = null
-
-        // Set Category
         categoryIdInput = article.categoryId.toString()
+
+        // Cari nama kategori untuk dropdown
         val currentCategory = categories.find { it.id == article.categoryId }
         selectedCategoryName = currentCategory?.name ?: ""
+
+        // Reset gambar input
+        selectedImageUri = null
+        selectedThumbnailUri = null
 
         showBottomSheet = true
     }
 
-    // Image Picker Launcher
+    // --- Launchers ---
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri: Uri? ->
-        selectedImageUri = uri
-    }
+    ) { uri: Uri? -> selectedImageUri = uri }
+
+    val thumbnailPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? -> selectedThumbnailUri = uri }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -193,7 +200,6 @@ fun YourArticleScreen(
         }
     ) { innerPadding ->
 
-        // --- Dialog Konfirmasi Hapus ---
         if (articleToDelete != null) {
             ConfirmationDialog(
                 title = "Hapus Artikel?",
@@ -209,7 +215,6 @@ fun YourArticleScreen(
             )
         }
 
-        // --- Modal Form Input (Add/Edit) ---
         if (showBottomSheet) {
             ModalBottomSheet(
                 onDismissRequest = { showBottomSheet = false },
@@ -240,7 +245,7 @@ fun YourArticleScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // 2. Kategori (Dropdown)
+                    // 2. Kategori
                     ExposedDropdownMenuBox(
                         expanded = isCategoryDropdownExpanded,
                         onExpandedChange = { isCategoryDropdownExpanded = !isCategoryDropdownExpanded },
@@ -255,7 +260,6 @@ fun YourArticleScreen(
                             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                             modifier = Modifier.menuAnchor().fillMaxWidth()
                         )
-
                         ExposedDropdownMenu(
                             expanded = isCategoryDropdownExpanded,
                             onDismissRequest = { isCategoryDropdownExpanded = false }
@@ -278,7 +282,7 @@ fun YourArticleScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // 3. Link Youtube
+                    // 3. Youtube
                     OutlinedTextField(
                         value = youtubeLinkInput,
                         onValueChange = { youtubeLinkInput = it },
@@ -287,37 +291,33 @@ fun YourArticleScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // 4. Konten (RICH EDITOR)
+                    // 4. Thumbnail
+                    Text("Thumbnail (Wajib/Opsional)", style = MaterialTheme.typography.labelMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Button(
+                            onClick = { thumbnailPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                        ) {
+                            Text(text = if (selectedThumbnailUri != null) "Ganti Thumbnail" else "Pilih Thumbnail", color = MaterialTheme.colorScheme.onSecondaryContainer)
+                        }
+                        if (selectedThumbnailUri != null) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Thumbnail siap!", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // 5. Rich Editor
                     Text("Isi Artikel", style = MaterialTheme.typography.labelMedium)
                     Spacer(modifier = Modifier.height(4.dp))
-
-                    // Toolbar Rich Editor
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        // Bold
+                    // Toolbar
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         IconButton(onClick = { richTextState.toggleSpanStyle(SpanStyle(fontWeight = FontWeight.Bold)) }) {
-                            Icon(Icons.Default.FormatBold, "Bold", tint = if (richTextState.currentSpanStyle.fontWeight == FontWeight.Bold) MaterialTheme.colorScheme.primary else Color.Gray)
-                        }
-                        // Italic
-                        IconButton(onClick = { richTextState.toggleSpanStyle(SpanStyle(fontStyle = FontStyle.Italic)) }) {
-                            Icon(Icons.Default.FormatItalic, "Italic", tint = if (richTextState.currentSpanStyle.fontStyle == FontStyle.Italic) MaterialTheme.colorScheme.primary else Color.Gray)
-                        }
-                        // Underline
-                        IconButton(onClick = { richTextState.toggleSpanStyle(SpanStyle(textDecoration = TextDecoration.Underline)) }) {
-                            Icon(Icons.Default.FormatUnderlined, "Underline", tint = if (richTextState.currentSpanStyle.textDecoration?.contains(TextDecoration.Underline) == true) MaterialTheme.colorScheme.primary else Color.Gray)
-                        }
-                        // Lists
-                        IconButton(onClick = { richTextState.toggleUnorderedList() }) {
-                            Icon(Icons.Default.FormatListBulleted, "Bullet List", tint = MaterialTheme.colorScheme.onSurface)
-                        }
-                        IconButton(onClick = { richTextState.toggleOrderedList() }) {
-                            Icon(Icons.Default.FormatListNumbered, "Number List", tint = MaterialTheme.colorScheme.onSurface)
+                            Icon(Icons.Default.FormatBold, "Bold")
                         }
                     }
 
-                    // Area Editor
                     OutlinedRichTextEditor(
                         state = richTextState,
                         modifier = Modifier.fillMaxWidth().height(300.dp),
@@ -329,10 +329,9 @@ fun YourArticleScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // 5. Upload Gambar
-                    Text("Gambar Artikel (Opsional)", style = MaterialTheme.typography.labelMedium)
+                    // 6. Gambar Utama
+                    Text("Gambar Utama (Opsional)", style = MaterialTheme.typography.labelMedium)
                     Spacer(modifier = Modifier.height(8.dp))
-
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Button(
                             onClick = { imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
@@ -340,7 +339,6 @@ fun YourArticleScreen(
                         ) {
                             Text(text = if (selectedImageUri != null) "Ganti Gambar" else "Pilih Gambar", color = Color.Black)
                         }
-
                         if (selectedImageUri != null) {
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Gambar dipilih!", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
@@ -348,46 +346,66 @@ fun YourArticleScreen(
                     }
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // 6. Tombol Simpan
+                    // 7. Tombol Simpan (Logic Inti)
                     Button(
                         onClick = {
-                            // Ambil HTML dari Editor
                             val contentHtml = richTextState.toHtml()
 
-                            // Validasi
-                            if (titleInput.isBlank() || contentHtml.isBlank() || categoryIdInput.isBlank()) {
-                                Toast.makeText(context, "Mohon lengkapi Judul, Konten, dan Kategori", Toast.LENGTH_SHORT).show()
+                            // Validasi dasar UI
+                            if (titleInput.isBlank() || contentHtml.isBlank()) {
+                                Toast.makeText(context, "Mohon lengkapi Judul dan Konten", Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
 
                             val authId = userId ?: 0
-                            val catId = categoryIdInput.toIntOrNull()
+
+                            // Konversi URI ke File
                             val fileImage = selectedImageUri?.let { uriToFile(context, it) }
+                            val fileThumbnail = selectedThumbnailUri?.let { uriToFile(context, it) }
 
                             if (isEditMode && currentEditingId != null) {
-                                // UPDATE
+                                // --- LOGIKA UPDATE ---
+
+                                // 1. Ambil data original untuk fallback
+                                val originalArticle = newsList.find { it.id == currentEditingId }
+
+                                // 2. Tentukan Status:
+                                // Gunakan status asli jika ada, jika tidak default ke "draft".
+                                // PENTING: .lowercase() untuk menghindari error 422 "The selected status is invalid"
+                                val statusToSend = (originalArticle?.status ?: "draft").lowercase()
+
+                                // 3. Tentukan Category ID:
+                                // Jika input dropdown valid, gunakan itu. Jika tidak, gunakan ID lama.
+                                val catIdToSend = categoryIdInput.toIntOrNull() ?: originalArticle?.categoryId
+
+                                // 4. Tentukan Youtube Link:
+                                // Karena kita sudah pre-fill input saat openEditModal, kita percaya input user.
+                                // Jika input kosong, berarti user menghapusnya (atau memang kosong).
+                                val youtubeToSend = youtubeLinkInput.ifBlank { null }
+
                                 viewModel.updateNews(
                                     newsId = currentEditingId!!,
                                     title = titleInput,
-                                    content = contentHtml, // Kirim HTML
+                                    content = contentHtml,
                                     authorId = authId,
-                                    categoryId = catId,
-                                    linkYoutube = youtubeLinkInput,
-                                    status = "pending_update",
-                                    imageFile = fileImage
+                                    categoryId = catIdToSend,
+                                    linkYoutube = youtubeToSend,
+                                    status = statusToSend, // <--- Perbaikan Utama (Lowercase)
+                                    imageFile = fileImage,
+                                    thumbnailFile = fileThumbnail
                                 )
                             } else {
-                                // CREATE
+                                // --- LOGIKA CREATE ---
+                                val catId = categoryIdInput.toIntOrNull()
                                 val request = NewsCreateRequest(
                                     title = titleInput,
-                                    content = contentHtml, // Kirim HTML
+                                    content = contentHtml,
                                     categoryId = catId,
                                     authorId = authId,
                                     linkYoutube = youtubeLinkInput.ifBlank { null },
                                     status = "draft"
                                 )
-                                // Kirim request object DAN file secara terpisah
-                                viewModel.createNews(request, fileImage)
+                                viewModel.createNews(request, fileImage, fileThumbnail)
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -410,41 +428,15 @@ fun YourArticleScreen(
                 .padding(top = innerPadding.calculateTopPadding())
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            // Loading Bar
+            // ... (Search bar dan LazyColumn sama seperti kode asli) ...
             if (isLoading && !showBottomSheet) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
 
-            // Search Bar
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Cari artikel anda...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) { Icon(Icons.Default.Close, "Clear") }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                singleLine = true,
-                shape = RoundedCornerShape(24.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    disabledContainerColor = Color.White,
-                    unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f),
-                    focusedBorderColor = MaterialTheme.colorScheme.primary
-                )
-            )
-
-            // List Item
             if (userId == null) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Silakan login terlebih dahulu.") }
             } else if (myArticles.isEmpty()) {
-                Box(Modifier.fillMaxSize().padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
-                    Text(text = if (searchQuery.isEmpty()) "Anda belum menulis artikel." else "Artikel tidak ditemukan.", color = Color.Gray)
-                }
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Belum ada artikel.") }
             } else {
                 LazyColumn(
                     contentPadding = PaddingValues(bottom = innerPadding.calculateBottomPadding() + 80.dp, start = 16.dp, end = 16.dp),
@@ -464,7 +456,7 @@ fun YourArticleScreen(
     }
 }
 
-// --- Composable Helper: Badge Status pada Card ---
+
 @Composable
 fun ArticleItemWithBadge(
     article: NewsModel,

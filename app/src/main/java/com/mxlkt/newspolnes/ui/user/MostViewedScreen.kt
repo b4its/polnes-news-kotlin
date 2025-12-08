@@ -44,13 +44,13 @@ fun MostViewedNewsScreen(
 
     // --- Side Effect: Memuat Data Saat Pertama Kali Dimuat ---
     LaunchedEffect(Unit) {
-        viewModel.fetchNewsMostViewedList(page = 1) // Muat halaman 1 saat awal
+        viewModel.fetchNewsMostViewedShortList(page = 1) // Muat halaman 1 saat awal
     }
 
     // Side Effect: Muat halaman baru saat currentPage berubah (kecuali halaman 1, karena sudah dimuat di LaunchedEffect)
     LaunchedEffect(currentPage) {
         if (currentPage > 1) {
-            viewModel.fetchNewsMostViewedList(page = currentPage)
+            viewModel.fetchNewsMostViewedShortList(page = currentPage)
         }
     }
 
