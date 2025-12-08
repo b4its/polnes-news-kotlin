@@ -1,268 +1,172 @@
 package com.mxlkt.newspolnes.ui.admin
 
-import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.mxlkt.newspolnes.components.AdminBottomNav
 import com.mxlkt.newspolnes.components.AdminUserCard
-import com.mxlkt.newspolnes.components.DeleteConfirmationDialog
-import com.mxlkt.newspolnes.components.TitleOnlyTopAppBar
+import com.mxlkt.newspolnes.model.UpdateUserRequest
 import com.mxlkt.newspolnes.model.User
 import com.mxlkt.newspolnes.model.UserRole
-import com.mxlkt.newspolnes.ui.theme.NewsPolnesTheme
-import com.mxlkt.newspolnes.view.UpdateRoleState // DITAMBAHKAN
+import com.mxlkt.newspolnes.view.AuthState
+import com.mxlkt.newspolnes.view.AuthViewModel
 import com.mxlkt.newspolnes.view.UserListState
 import com.mxlkt.newspolnes.view.UserViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ManageUsersScreen(viewModel: UserViewModel = viewModel()) {
+fun ManageUsersScreen(
+    userViewModel: UserViewModel = viewModel(),
+    authViewModel: AuthViewModel = viewModel()
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    // --- State dari ViewModels ---
+    val userListState by userViewModel.userListState
+    val authState by authViewModel.authState
 
-// 1. Ambil state dari ViewModel
-    val userListState by viewModel.userListState
-    // � State BARU untuk Update Role
-    val updateRoleState by viewModel.updateRoleState
-
-    // 2. State Compose lokal untuk menampilkan data yang difilter
+    // --- Local UI State ---
     val usersState = remember { mutableStateListOf<User>() }
-    var isLoading by remember { mutableStateOf(true) }
+    var isLoading by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
-    var userToDelete by remember { mutableStateOf<User?>(null) }
-    var userToEdit by remember { mutableStateOf<User?>(null) } // Pengguna yang akan diedit
 
-    // 3. � Pemicu Pemuatan Data (Executed Once)
+    // State untuk Modal/Dialog
+    var userToDelete by remember { mutableStateOf<User?>(null) }
+    var userToEdit by remember { mutableStateOf<User?>(null) }
+
+    // 1. Initial Data Load
     LaunchedEffect(Unit) {
-        viewModel.fetchAllUsers()
+        userViewModel.fetchAllUsers()
     }
 
-    // 4. �️ Pengamatan User List State (Memuat data awal/refresh)
+    // 2. Observer User List
     LaunchedEffect(userListState) {
         when (val state = userListState) {
-            is UserListState.Loading -> {
-                isLoading = true
-            }
-
+            is UserListState.Loading -> isLoading = true
             is UserListState.Success -> {
-                // KOSONGKAN dan ISI ULANG usersState
                 usersState.clear()
-                usersState.addAll(
-                    state.users
-                        .filter { it.role != UserRole.ADMIN } // Filter ADMIN
-                )
+                usersState.addAll(state.users.filter { it.role != UserRole.ADMIN })
                 isLoading = false
             }
-
             is UserListState.Error -> {
                 isLoading = false
-                Log.e("UserList", "Gagal memuat pengguna: ${state.message}")
-                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
-            }
-
-            UserListState.Idle -> { /* Biarkan idle */ }
-        }
-    }
-
-    // 5. � Pengamatan Update Role State (Memproses hasil update role)
-    LaunchedEffect(updateRoleState) {
-        when (val state = updateRoleState) {
-            is UpdateRoleState.Success -> {
-                // 1. Tampilkan notifikasi
                 Toast.makeText(context, state.message, Toast.LENGTH_SHORT).show()
-
-                // 2. Update list lokal secara reaktif
-                val updatedUser = state.user
-                val index = usersState.indexOfFirst { it.id == updatedUser.id }
-                if (index != -1) {
-                    // Cek jika role baru bukan ADMIN (karena list ini difilter)
-                    if (updatedUser.role != UserRole.ADMIN) {
-                        usersState[index] = updatedUser // Ganti objek lama dengan yang baru
-                    } else {
-                        usersState.removeAt(index) // Hapus dari list jika role diubah menjadi ADMIN
-                    }
-                } else if (updatedUser.role != UserRole.ADMIN) {
-                    // Kasus jarang: Jika user belum ada di list tapi berhasil diupdate (misal baru dibuat), tambahkan.
-                    usersState.add(updatedUser)
-                }
-
-                // 3. Reset state agar tidak terpicu lagi
-                viewModel.resetUpdateRoleState()
-
             }
-            is UpdateRoleState.Error -> {
-                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
-                viewModel.resetUpdateRoleState()
-            }
-            is UpdateRoleState.Loading -> {
-                // Opsional: Tampilkan loading global jika perlu
-            }
-            UpdateRoleState.Idle -> { /* Biarkan idle */ }
+            else -> {}
         }
     }
 
-
-    // 2. UI State & Pager
-    val tabTitles = listOf("All", "User", "Editor")
-    val pagerState = rememberPagerState(pageCount = { tabTitles.size })
-
-
-    // --- DIALOG KONFIRMASI HAPUS ---
-    if (userToDelete != null) {
-        DeleteConfirmationDialog(
-            showDialog = true,
-            onDismiss = { userToDelete = null },
-            onConfirm = {
-                usersState.remove(userToDelete)
-                Toast.makeText(context, "User ${userToDelete?.name} deleted (Local)", Toast.LENGTH_SHORT).show()
-                userToDelete = null
-                // TODO: Panggil API DELETE di sini
-            }
-        )
-    }
-
-    // --- DIALOG EDIT ROLE (Diperbaiki untuk memanggil ViewModel) ---
-    if (userToEdit != null) {
-        // Cek status loading dari operasi update role
-        val isUpdating = updateRoleState is UpdateRoleState.Loading
-
-        EditUserRoleDialog(
-            user = userToEdit!!,
-            onDismiss = { userToEdit = null },
-            isUpdating = isUpdating, // Kirim status loading ke dialog
-            onSave = { targetRole ->
-                // Jika role sama, batalkan operasi
-                if (targetRole == userToEdit!!.role) {
-                    Toast.makeText(context, "Role tidak berubah.", Toast.LENGTH_SHORT).show()
-                    userToEdit = null
-                    return@EditUserRoleDialog
-                }
-
-                // Panggil fungsi update role di ViewModel
-                // Karena route Laravel hanya untuk EDITOR, kita panggil ini
-                viewModel.updateRole(userToEdit!!.id)
-
-                // Tutup dialog (Status SUCCESS/ERROR akan ditangani oleh LaunchedEffect di atas)
+    // 3. Observer Auth State
+    LaunchedEffect(authState) {
+        when (val state = authState) {
+            is AuthState.SuccessUpdate -> {
+                Toast.makeText(context, "Data pengguna berhasil diperbarui!", Toast.LENGTH_SHORT).show()
                 userToEdit = null
+                authViewModel.resetState()
+                userViewModel.fetchAllUsers()
             }
-        )
+            is AuthState.Error -> {
+                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                authViewModel.resetState()
+            }
+            else -> {}
+        }
     }
 
-    // --- LAYOUT UTAMA ---
+    // --- LOGIC UI UTAMA ---
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Tab Row
-        TabRow(
-            selectedTabIndex = pagerState.currentPage,
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.primary
-        ) {
+        // Tab Layout
+        val tabTitles = listOf("All", "User", "Editor")
+        val pagerState = rememberPagerState(pageCount = { tabTitles.size })
+
+        TabRow(selectedTabIndex = pagerState.currentPage) {
             tabTitles.forEachIndexed { index, title ->
                 Tab(
                     selected = pagerState.currentPage == index,
-                    onClick = {
-                        scope.launch { pagerState.animateScrollToPage(index) }
-                    },
-                    text = {
-                        Text(
-                            text = title,
-                            fontWeight = if (pagerState.currentPage == index) FontWeight.Bold else FontWeight.Normal
-                        )
-                    }
+                    onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
+                    text = { Text(title, fontWeight = if (pagerState.currentPage == index) FontWeight.Bold else FontWeight.Normal) }
                 )
             }
         }
 
-        // Search Bar (Global untuk semua tab)
+        // Search Bar
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
-            placeholder = { Text("Search by name...") },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+            placeholder = { Text("Cari nama pengguna...") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             trailingIcon = {
                 if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { searchQuery = "" }) {
-                        Icon(Icons.Default.Close, contentDescription = "Clear search")
-                    }
+                    IconButton(onClick = { searchQuery = "" }) { Icon(Icons.Default.Close, contentDescription = null) }
                 }
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(16.dp),
             singleLine = true,
-            shape = RoundedCornerShape(24.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White,
-                disabledContainerColor = Color.White,
-                unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f),
-                focusedBorderColor = MaterialTheme.colorScheme.primary
-            )
+            shape = RoundedCornerShape(24.dp)
         )
 
-        // � HORIZONTAL PAGER
+        // Content Pager
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.Top
+            verticalAlignment = Alignment.Top // PERUBAHAN UTAMA: Agar konten rata atas (di bawah search bar)
         ) { page ->
 
-            // Logika Filter per Halaman (Page)
+            // Filter Logic
             val displayedUsers = remember(page, searchQuery, usersState.toList()) {
-                // 1. Filter Role
                 val byRole = when (page) {
-                    0 -> usersState // All
-                    1 -> usersState.filter { it.role == UserRole.USER } // User only
-                    2 -> usersState.filter { it.role == UserRole.EDITOR } // Editor only
+                    1 -> usersState.filter { it.role == UserRole.USER }
+                    2 -> usersState.filter { it.role == UserRole.EDITOR }
                     else -> usersState
                 }
-                // 2. Filter Search
-                if (searchQuery.isBlank()) byRole
-                else byRole.filter {
-                    it.name.contains(searchQuery, ignoreCase = true)
-                }
+                if (searchQuery.isBlank()) byRole else byRole.filter { it.name.contains(searchQuery, ignoreCase = true) }
             }
 
-            if (isLoading && usersState.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
+            if (isLoading) {
+                // Loading tetap di tengah layar agar terlihat jelas
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             } else if (displayedUsers.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No users found.", color = Color.Gray)
-                }
+                // Pesan kosong tetap di tengah layar
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Tidak ada data pengguna.", color = Color.Gray) }
             } else {
+                // List Data (Sekarang akan rata atas)
                 LazyColumn(
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxSize()
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxSize() // Pastikan LazyColumn mengisi ruang yang tersedia
                 ) {
                     items(displayedUsers) { user ->
                         AdminUserCard(
@@ -271,101 +175,132 @@ fun ManageUsersScreen(viewModel: UserViewModel = viewModel()) {
                             onDeleteClick = { userToDelete = user }
                         )
                     }
-                    item { Spacer(modifier = Modifier.height(80.dp)) }
                 }
             }
         }
     }
+
+    // --- MODAL / DIALOG SECTION ---
+
+    // 1. Modal Delete
+    if (userToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { userToDelete = null },
+            title = { Text("Konfirmasi Hapus") },
+            text = { Text("Apakah anda ingin menghapus akun ini? (${userToDelete?.name})") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        Toast.makeText(context, "Fitur Delete belum diimplementasikan di API", Toast.LENGTH_SHORT).show()
+                        usersState.remove(userToDelete)
+                        userToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Hapus")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { userToDelete = null }) { Text("Batal") }
+            }
+        )
+    }
+
+    // 2. Modal Edit
+    if (userToEdit != null) {
+        EditUserDialog(
+            user = userToEdit!!,
+            isLoading = authState is AuthState.Loading,
+            onDismiss = { userToEdit = null },
+            onSave = { request ->
+                authViewModel.updateUser(userToEdit!!.id, request)
+            }
+        )
+    }
 }
 
-// -------------------------------------------------------------------------------------------------
-// EditUserRoleDialog Disesuaikan
-// -------------------------------------------------------------------------------------------------
-
+// Komponen EditUserDialog tetap sama
 @Composable
-fun EditUserRoleDialog(
+fun EditUserDialog(
     user: User,
+    isLoading: Boolean,
     onDismiss: () -> Unit,
-    isUpdating: Boolean, // Status loading BARU
-    onSave: (UserRole) -> Unit
+    onSave: (UpdateUserRequest) -> Unit
 ) {
-    // Role target berdasarkan endpoint yang hanya mengubah ke EDITOR
-    val targetRole = UserRole.EDITOR
-    // Tombol hanya aktif jika role saat ini adalah USER dan tidak sedang loading
-    val isUserAndNotUpdating = user.role == UserRole.USER && !isUpdating
+    var name by remember { mutableStateOf(user.name) }
+    var email by remember { mutableStateOf(user.email) }
+    var password by remember { mutableStateOf("") }
+    var selectedRole by remember { mutableStateOf(user.role) }
+    var passwordVisible by remember { mutableStateOf(false) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Ubah Role ${user.name}") },
-        text = {
-            Column {
-                Text("Role saat ini:", style = MaterialTheme.typography.bodyMedium)
-                Text(
-                    text = user.role.name,
-                    fontWeight = FontWeight.Bold,
-                    color = if (user.role == UserRole.EDITOR) MaterialTheme.colorScheme.primary else Color.Gray,
-                    modifier = Modifier.padding(bottom = 8.dp)
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text("Edit Pengguna", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+
+                OutlinedTextField(
+                    value = name, onValueChange = { name = it },
+                    label = { Text("Nama Lengkap") }, singleLine = true, modifier = Modifier.fillMaxWidth()
                 )
 
-                if (user.role == targetRole) {
-                    Text("Pengguna ini sudah menjadi ${targetRole.name}.", color = Color.Gray)
-                } else if (user.role == UserRole.ADMIN) {
-                    Text("Role ADMIN tidak dapat diubah di sini.", color = MaterialTheme.colorScheme.error)
-                } else {
-                    Text("Aksi yang tersedia:", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Tingkatkan role menjadi ${targetRole.name}")
-                }
+                OutlinedTextField(
+                    value = email, onValueChange = { email = it },
+                    label = { Text("Email") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth()
+                )
 
-                if (isUpdating) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        CircularProgressIndicator(Modifier.size(24.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Memperbarui role...")
+                OutlinedTextField(
+                    value = password, onValueChange = { password = it },
+                    label = { Text("Password Baru") }, placeholder = { Text("Biarkan kosong jika tetap") },
+                    singleLine = true, visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        val image = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) { Icon(image, null) }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Column {
+                    Text("Role Pengguna:", style = MaterialTheme.typography.bodyMedium)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = selectedRole == UserRole.USER, onClick = { selectedRole = UserRole.USER })
+                        Text("User", modifier = Modifier.clickable { selectedRole = UserRole.USER })
+                        Spacer(modifier = Modifier.width(16.dp))
+                        RadioButton(selected = selectedRole == UserRole.EDITOR, onClick = { selectedRole = UserRole.EDITOR })
+                        Text("Editor", modifier = Modifier.clickable { selectedRole = UserRole.EDITOR })
                     }
                 }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onSave(targetRole) },
-                enabled = isUserAndNotUpdating
-            ) {
-                if (isUpdating) {
-                    Text("Loading...")
-                } else {
-                    Text(if (user.role == targetRole) "Sudah EDITOR" else "Upgrade ke EDITOR")
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss, enabled = !isLoading) { Text("Batal") }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            val request = UpdateUserRequest(
+                                name = name, email = email,
+                                password = if (password.isNotBlank()) password else null,
+                                role = selectedRole.name
+                            )
+                            onSave(request)
+                        },
+                        enabled = !isLoading
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Menyimpan...")
+                        } else {
+                            Text("Simpan")
+                        }
+                    }
                 }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isUpdating) {
-                Text("Batal")
-            }
-        }
-    )
-}
-
-// -------------------------------------------------------------------------------------------------
-// Preview
-// -------------------------------------------------------------------------------------------------
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Preview(showBackground = true)
-@Composable
-private fun ManageUsersFullPreview() {
-    NewsPolnesTheme {
-        Scaffold(
-            topBar = { TitleOnlyTopAppBar(title = "Manage Users") },
-            bottomBar = { AdminBottomNav(currentRoute = "Users", onItemClick = {}) }
-        ) { innerPadding ->
-            Box(modifier = Modifier.padding(innerPadding)) {
-                // Di Preview, kita menggunakan ViewModel dummy atau tidak memanggil API
-                ManageUsersScreen()
             }
         }
     }

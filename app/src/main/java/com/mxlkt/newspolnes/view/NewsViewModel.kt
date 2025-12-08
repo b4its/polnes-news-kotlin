@@ -112,6 +112,51 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun fetchDraftedNewsList(page: Int = 1) {
+        _isLoading.value = true
+        _errorMessage.value = null
+        viewModelScope.launch {
+            try {
+                val response = repository.getNewsDrafted(page)
+                // Jika halaman 1, ganti list. Jika halaman > 1, tambahkan ke list yang sudah ada.
+                if (page == 1) {
+                    _newsList.value = response.data.data
+                } else {
+                    val currentList = _newsList.value.orEmpty().toMutableList()
+                    currentList.addAll(response.data.data)
+                    _newsList.value = currentList
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal memuat berita: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+
+    fun fetchReviewNewsList(page: Int = 1) {
+        _isLoading.value = true
+        _errorMessage.value = null
+        viewModelScope.launch {
+            try {
+                val response = repository.getNewsReview(page)
+                // Jika halaman 1, ganti list. Jika halaman > 1, tambahkan ke list yang sudah ada.
+                if (page == 1) {
+                    _newsList.value = response.data.data
+                } else {
+                    val currentList = _newsList.value.orEmpty().toMutableList()
+                    currentList.addAll(response.data.data)
+                    _newsList.value = currentList
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal memuat berita: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
 
 
 
@@ -293,6 +338,8 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Membuat berita baru (tanpa gambar)
      */
+
+
 // Tambahkan parameter imageFile: File?
     fun createNews(request: NewsCreateRequest, imageFile: File?, thumbnailFile: File?) {
         _isLoading.value = true
@@ -307,6 +354,31 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
                 // Maka kita cukup mengirim object request & file saja.
 
                 val response = repository.createNews(request, imageFile, thumbnailFile)
+
+                _successMessage.value = response.message ?: "Berita berhasil dibuat!"
+
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal membuat berita: ${e.message}"
+                e.printStackTrace()
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+// Tambahkan parameter imageFile: File?
+    fun createNewsAdmin(request: NewsCreateRequest, imageFile: File?, thumbnailFile: File?) {
+        _isLoading.value = true
+        _errorMessage.value = null
+        _successMessage.value = null
+
+        viewModelScope.launch {
+            try {
+                // PERBAIKAN:
+                // Karena di langkah sebelumnya kita mendefinisikan Repository sebagai:
+                // createNews(request: NewsCreateRequest, imageFile: File?)
+                // Maka kita cukup mengirim object request & file saja.
+
+                val response = repository.createNewsAdmin(request, imageFile, thumbnailFile)
 
                 _successMessage.value = response.message ?: "Berita berhasil dibuat!"
 
@@ -359,6 +431,52 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updatePublishStatus(idNews: Int) {
+        _isLoading.value = true
+        _errorMessage.value = null
+        // Gunakan successMessage agar UI tahu operasi berhasil dan bisa refresh list
+        viewModelScope.launch {
+            try {
+                val response = repository.updatePublishStatus(idNews)
+                // Pesan sukses ini akan memicu refresh di UI (LaunchedEffect)
+                _successMessage.value = response.message ?: "Berita berhasil dipublish!"
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal mempublish berita: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun updateReviewStatus(idNews: Int) {
+        _isLoading.value = true
+        _errorMessage.value = null
+        viewModelScope.launch {
+            try {
+                val response = repository.updateReviewStatus(idNews)
+                _successMessage.value = response.message ?: "Berita dikirim untuk review!"
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal update status review: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun updateDraftStatus(idNews: Int) {
+        _isLoading.value = true
+        _errorMessage.value = null
+        viewModelScope.launch {
+            try {
+                val response = repository.updateDraftStatus(idNews)
+                _successMessage.value = response.message ?: "Berita dikembalikan ke draft!"
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal update status draft: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
 
     fun updateNews(
         newsId: Int,

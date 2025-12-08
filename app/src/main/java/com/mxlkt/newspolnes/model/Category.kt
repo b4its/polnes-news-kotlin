@@ -3,41 +3,68 @@ package com.mxlkt.newspolnes.model
 import com.google.gson.annotations.SerializedName
 
 /**
- * Model data yang merefleksikan objek Category yang dikembalikan oleh API
- * 'gambar' (String) adalah URL dari gambar.
+ * Model data utama Category.
  */
 data class Category(
+    @SerializedName("id")
     val id: Int,
+
+    @SerializedName("name")
     val name: String,
-    // Perhatikan nama kolom di Laravel adalah 'gambar'
+
+    // Menggunakan @SerializedName memastikan key JSON tetap 'gambar'
+    @SerializedName("gambar")
     val gambar: String?
 )
 
 /**
- * Model data untuk permintaan POST/PUT (CREATE/UPDATE)
+ * Request Model untuk CREATE/UPDATE.
+ * Catatan: Jika 'gambar' di sini hanyalah string URL, ini sudah benar.
+ * Jika Anda berniat mengupload FILE gambar asli, Anda harus menggunakan Multipart (lihat catatan di bawah).
  */
 data class CategoryRequest(
+    @SerializedName("name")
     val name: String,
-    val gambar: String // URL gambar yang dikirim ke API
+
+    @SerializedName("gambar")
+    val gambar: String // Kirim string URL (bukan file binary)
 )
 
 /**
- * Struktur Respons JSON dari endpoint showAllCategory
+ * Respons untuk List Category (Show All)
  */
 data class CategoryResponse(
+    @SerializedName("status")
     val status: String,
+
+    @SerializedName("message")
     val message: String,
-    val count: Int?, // Boleh null jika ada error
-    @SerializedName("data") // Mengambil list CategoryDto dari field 'data'
-    val data: List<Category>?
+
+    @SerializedName("count")
+    val count: Int? = 0, // Default 0 jika null
+
+    @SerializedName("data")
+    val data: List<Category>? = emptyList() // Default empty list agar aman
 )
 
 /**
- * Struktur Respons JSON dari endpoint store/update
+ * Respons untuk Single Category (Store/Update/Show One)
  */
 data class SingleCategoryResponse(
+    @SerializedName("status")
     val status: String,
+
+    @SerializedName("message")
     val message: String,
+
     @SerializedName("data")
     val data: Category?
+)
+
+data class BasicResponses(
+    @SerializedName("status")
+    val status: String,
+
+    @SerializedName("message")
+    val message: String
 )

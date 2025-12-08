@@ -9,8 +9,11 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
+import retrofit2.http.Query
 import java.util.concurrent.TimeUnit
 
 // Interface untuk endpoint API yang sudah ada (Users dan Auth)
@@ -28,6 +31,16 @@ interface ApiService {
     suspend fun updateRoleToEditor(
         @Path("id") userId: Int
     ): Response<UpdateRoleToEditorResponse>
+
+    @GET("users/update/{id}")
+    suspend fun updateUser(
+        @Path("id") userId: Int,
+        // Kita TIDAK BISA menggunakan @Body di sini. Kita harus menggunakan @Query:
+        @Query("name") name: String?,
+        @Query("email") email: String?,
+        @Query("password") password: String?,
+        @Query("role") role: String?
+    ): Response<UpdateUserResponse>
 }
 
 
@@ -116,9 +129,14 @@ object ApiClient {
             .build()
     }
 
-    // Instance ApiService (untuk Login, Register, GET Users)
+    // Instance ApiService (untuk Login, Register, GET Users publik)
     val apiService: ApiService by lazy {
         retrofitPublic.create(ApiService::class.java)
+    }
+
+    // Instance ApiService terotentikasi (untuk Update User, Update Role)
+    val apiServiceAuthenticated: ApiService by lazy {
+        retrofitAuthenticated.create(ApiService::class.java)
     }
 
     // Instance ApiNewsService (untuk GET News yang publik)

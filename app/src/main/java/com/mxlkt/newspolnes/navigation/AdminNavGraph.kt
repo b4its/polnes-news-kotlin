@@ -10,27 +10,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import android.widget.Toast
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.mxlkt.newspolnes.components.AdminBottomNav
 import com.mxlkt.newspolnes.components.TitleOnlyTopAppBar
-// import com.mxlkt.newspolnes.model.User
 import com.mxlkt.newspolnes.ui.admin.*
-import com.mxlkt.newspolnes.ui.common.PrivacyPolicyScreen
 import com.mxlkt.newspolnes.ui.common.AboutScreen
+import com.mxlkt.newspolnes.ui.common.PrivacyPolicyScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminNavGraph(
     rootNavController: NavHostController,
-    // currentUser: User?, // Dihapus
     onLogout: () -> Unit
 ) {
     val adminNavController = rememberNavController()
@@ -41,18 +38,20 @@ fun AdminNavGraph(
 
     val adminMainScreens = listOf("Dashboard", "News", "Categories", "Users", "Settings")
 
+    // Logika menyembunyikan TopBar dan BottomBar di halaman detail/form
+    // PERBAIKAN: "add_category" dihapus dari pengecualian karena route-nya sudah tidak ada
     val showBars = adminMainScreens.any { currentRoute.startsWith(it) } &&
-            !currentRoute.startsWith("add_category") &&
-            !currentRoute.startsWith("edit_article")
+            !currentRoute.startsWith("edit_article") &&
+            !currentRoute.startsWith("add_article")
 
-    val topBarTitle = when (currentRoute) {
-        "Dashboard" -> "Admin Dashboard"
-        "News" -> "Manage News"
-        "Categories" -> "Manage Categories"
-        "Users" -> "Manage Users"
-        "Settings" -> "Settings"
-        "PrivacyPolicy" -> "Privacy Policy"
-        "About" -> "About"
+    val topBarTitle = when {
+        currentRoute.startsWith("Dashboard") -> "Admin Dashboard"
+        currentRoute.startsWith("News") -> "Manage News"
+        currentRoute.startsWith("Categories") -> "Manage Categories"
+        currentRoute.startsWith("Users") -> "Manage Users"
+        currentRoute.startsWith("Settings") -> "Settings"
+        currentRoute == "PrivacyPolicy" -> "Privacy Policy"
+        currentRoute == "About" -> "About"
         else -> ""
     }
 
@@ -87,49 +86,56 @@ fun AdminNavGraph(
             popEnterTransition = { slideInHorizontally(initialOffsetX = { -1000 }, animationSpec = tween(300)) },
             popExitTransition = { slideOutHorizontally(targetOffsetX = { 1000 }, animationSpec = tween(300)) }
         ) {
+            // 1. Dashboard
             composable("Dashboard") { AdminDashboardScreen() }
 
+            // 2. Manage News (Screen Utama)
             composable("News") {
                 ManageNewsScreen(
-                    onEditArticleClick = { articleId -> adminNavController.navigate("edit_article/$articleId") }
+                    onAddArticleClick = {
+                        adminNavController.navigate("add_article")
+                    },
+                    onEditArticleClick = { articleId ->
+                        adminNavController.navigate("edit_article/$articleId")
+                    }
                 )
             }
 
-            composable("edit_article/{articleId}", arguments = listOf(navArgument("articleId") { type = NavType.IntType })) { backStackEntry ->
+            // 3. Form Tambah Artikel
+            composable("add_article") {
+                AdminEditArticleScreen(
+                    articleId = -1,
+                    onBackClick = { adminNavController.popBackStack() },
+                    onSaveClick = { adminNavController.popBackStack() }
+                )
+            }
+
+            // 4. Form Edit Artikel
+            composable(
+                route = "edit_article/{articleId}",
+                arguments = listOf(navArgument("articleId") { type = NavType.IntType })
+            ) { backStackEntry ->
                 val articleId = backStackEntry.arguments?.getInt("articleId") ?: -1
                 AdminEditArticleScreen(
                     articleId = articleId,
                     onBackClick = { adminNavController.popBackStack() },
-                    onSaveClick = {
-                        Toast.makeText(context, "Article Updated Successfully!", Toast.LENGTH_SHORT).show()
-                        adminNavController.popBackStack()
-                    }
+                    onSaveClick = { adminNavController.popBackStack() }
                 )
             }
 
+            // 5. Manage Categories (FOKUS PERBAIKAN DISINI)
+            // Karena sekarang pakai Modal/Dialog, kita tidak butuh navigasi tambahan
             composable("Categories") {
-                ManageCategoriesScreen(
-                    onAddCategoryClick = { adminNavController.navigate("add_category") },
-                    onEditCategoryClick = { categoryId -> adminNavController.navigate("add_category?categoryId=$categoryId") }
-                )
+                ManageCategoriesScreen()
             }
 
-            composable("add_category?categoryId={categoryId}", arguments = listOf(navArgument("categoryId") { type = NavType.IntType; defaultValue = -1 })) { backStackEntry ->
-                val argId = backStackEntry.arguments?.getInt("categoryId") ?: -1
-                val finalId = if (argId == -1) null else argId
-                AddANewCategoryScreen(
-                    categoryId = finalId,
-                    onBackClick = { adminNavController.popBackStack() },
-                    onSubmitClick = {
-                        val msg = if (finalId == null) "Category Added!" else "Category Updated!"
-                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                        adminNavController.popBackStack()
-                    }
-                )
-            }
+            // 6. Form Category (HAPUS)
+            // Route "add_category" dihapus karena fungsinya sudah pindah ke dalam Modal di ManageCategoriesScreen
 
+            // 7. Manage Users
             composable("Users") { ManageUsersScreen() }
 
+            // 8. Settings
             composable("Settings") {
                 AdminSettingsScreen(
                     onLogout = onLogout,
@@ -138,16 +144,13 @@ fun AdminNavGraph(
                 )
             }
 
+            // 9. Common Pages
             composable("PrivacyPolicy") {
-                PrivacyPolicyScreen(
-                    onNavigateBack = { adminNavController.popBackStack() }
-                )
+                PrivacyPolicyScreen(onNavigateBack = { adminNavController.popBackStack() })
             }
 
             composable("About") {
-                AboutScreen(
-                    onNavigateBack = { adminNavController.popBackStack() }
-                )
+                AboutScreen(onNavigateBack = { adminNavController.popBackStack() })
             }
         }
     }

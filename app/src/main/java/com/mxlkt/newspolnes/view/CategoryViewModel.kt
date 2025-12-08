@@ -9,6 +9,7 @@ import com.mxlkt.newspolnes.model.Category
 import com.mxlkt.newspolnes.model.CategoryRequest
 import com.mxlkt.newspolnes.repository.CategoryRepository
 import kotlinx.coroutines.launch
+import java.io.File
 
 /**
  * ViewModel untuk mengelola data kategori, menyesuaikan pola dari NewsViewModel.
@@ -65,22 +66,27 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
     /**
      * Membuat kategori baru.
      */
-    fun createCategory(request: CategoryRequest) {
+    fun createCategory(name: String, imageFile: File) {
         _isLoading.value = true
         _errorMessage.value = null
         _successMessage.value = null
+
         viewModelScope.launch {
             try {
-                // Repository mengembalikan Category data atau melempar Exception
-                val newCategory: Category = repository.createCategory(request)
+                // Panggil fungsi repository yang baru (yang support Multipart)
+                // Kita pass 'name' dan 'imageFile' langsung
+                val newCategory: Category = repository.createCategory(name, imageFile)
 
                 _successMessage.value = "Kategori ${newCategory.name} berhasil dibuat!"
                 _singleCategory.value = newCategory
 
-                // Opsional: Perbarui daftar di UI dengan data baru (jika perlu)
+                // Refresh list agar data baru muncul
                 fetchAllCategories()
+
             } catch (e: Exception) {
                 _errorMessage.value = "Gagal membuat kategori: ${e.message}"
+                // Log error untuk debugging jika perlu
+                e.printStackTrace()
             } finally {
                 _isLoading.value = false
             }
@@ -90,22 +96,54 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
     /**
      * Memperbarui kategori yang sudah ada.
      */
-    fun updateCategory(categoryId: Int, request: CategoryRequest) {
+    fun updateCategory(categoryId: Int, name: String, imageFile: File?) {
         _isLoading.value = true
         _errorMessage.value = null
         _successMessage.value = null
+
         viewModelScope.launch {
             try {
-                // Repository mengembalikan Category data atau melempar Exception
-                val updatedCategory: Category = repository.updateCategory(categoryId, request)
+                // Panggil repository dengan parameter baru (id, name, file)
+                val updatedCategory: Category = repository.updateCategory(categoryId, name, imageFile)
 
                 _successMessage.value = "Kategori ${updatedCategory.name} berhasil diperbarui!"
                 _singleCategory.value = updatedCategory
 
-                // Opsional: Perbarui daftar di UI dengan data yang diperbarui
+                // Refresh list agar perubahan langsung terlihat di UI
                 fetchAllCategories()
+
             } catch (e: Exception) {
                 _errorMessage.value = "Gagal memperbarui kategori: ${e.message}"
+                // Log untuk debugging
+                e.printStackTrace()
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Menghapus kategori berdasarkan ID.
+     */
+    fun deleteCategory(categoryId: Int) {
+        _isLoading.value = true
+        _errorMessage.value = null
+        _successMessage.value = null
+
+        viewModelScope.launch {
+            try {
+                // 1. Panggil Repository
+                val message = repository.deleteCategory(categoryId)
+
+                // 2. Set pesan sukses
+                _successMessage.value = message
+
+                // 3. PENTING: Refresh data agar item yang dihapus hilang dari layar
+                fetchAllCategories()
+
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal menghapus kategori: ${e.message}"
+                e.printStackTrace()
             } finally {
                 _isLoading.value = false
             }

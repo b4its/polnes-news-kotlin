@@ -35,6 +35,25 @@ class NewsRepository(
         throw Exception("Gagal memuat daftar berita: ${response.code()}")
     }
 
+    // 1. GET Daftar Berita (Publik)
+    suspend fun getNewsDrafted(page: Int = 1): NewsListResponse {
+        val response = apiNewsServicePublic.getNewsDrafted(page)
+        if (response.isSuccessful && response.body() != null) {
+            return response.body()!!
+        }
+        // Melempar exception jika respons gagal
+        throw Exception("Gagal memuat daftar berita: ${response.code()}")
+    }
+    // 1. GET Daftar Berita (Publik)
+    suspend fun getNewsReview(page: Int = 1): NewsListResponse {
+        val response = apiNewsServicePublic.getNewsReview(page)
+        if (response.isSuccessful && response.body() != null) {
+            return response.body()!!
+        }
+        // Melempar exception jika respons gagal
+        throw Exception("Gagal memuat daftar berita: ${response.code()}")
+    }
+
     suspend fun getRecentViewFirst(): SingleNewsResponse {
         val response = apiNewsServicePublic.getRecentViewFirst()
         if (response.isSuccessful && response.body() != null) {
@@ -166,8 +185,107 @@ class NewsRepository(
         throw Exception("Gagal Create: ${response.code()} ${response.message()}")
     }
 
+    // 3. POST Buat Berita Baru (Terotentikasi) - Dengan Gambar & Thumbnail
+    suspend fun createNewsAdmin(
+        request: NewsCreateRequest,
+        imageFile: File?,
+        thumbnailFile: File?
+    ): SingleNewsResponse {
+
+        // 1. Konversi Teks ke RequestBody
+        val titleRB = request.title.toRequestBody("text/plain".toMediaTypeOrNull())
+        val contentRB = request.content.toRequestBody("text/plain".toMediaTypeOrNull())
+        val categoryIdRB = request.categoryId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+        val authorIdRB = request.authorId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+
+        // PENTING: Paksa ke Uppercase agar sesuai validasi Laravel "in:DRAFT,PUBLISHED"
+        val safeStatus = (request.status ?: "DRAFT").uppercase()
+        val statusRB = safeStatus.toRequestBody("text/plain".toMediaTypeOrNull())
+
+        val youtubeRB = if (!request.linkYoutube.isNullOrBlank()) {
+            request.linkYoutube.toRequestBody("text/plain".toMediaTypeOrNull())
+        } else null
+
+        // 2. Proses File Gambar Utama
+        var imagePart: MultipartBody.Part? = null
+        if (imageFile != null) {
+            val requestFile = imageFile.asRequestBody("image/*".toMediaTypeOrNull())
+            imagePart = MultipartBody.Part.createFormData("gambar", imageFile.name, requestFile)
+        }
+
+        // 3. Proses File Thumbnail
+        var thumbnailPart: MultipartBody.Part? = null
+        if (thumbnailFile != null) {
+            val requestThumbnail = thumbnailFile.asRequestBody("image/*".toMediaTypeOrNull())
+            thumbnailPart = MultipartBody.Part.createFormData("thumbnail", thumbnailFile.name, requestThumbnail)
+        }
+
+        // 4. Kirim Request
+        val response = apiNewsServices.createNewsAdmin(
+            title = titleRB,
+            content = contentRB,
+            categoryId = categoryIdRB,
+            authorId = authorIdRB,
+            linkYoutube = youtubeRB,
+            status = statusRB,
+            gambar = imagePart,
+            thumbnail = thumbnailPart
+        )
+
+        if (response.isSuccessful && response.body() != null) {
+            return response.body()!!
+        }
+
+        throw Exception("Gagal Create: ${response.code()} ${response.message()}")
+    }
+
     suspend fun addViews(newsId: Int): SingleNewsResponse {
         val response = apiNewsServices.addViewNews(newsId = newsId)
+
+        if (response.isSuccessful && response.body() != null) {
+            // Berdasarkan respons API Laravel, kita mengembalikan data berita yang sudah diupdate.
+            // Respons sukses biasanya mengandung 'data' berita lengkap dengan 'newViews'.
+            return response.body()!!
+        }
+
+        // Tangani error, misalnya 404 Not Found (seperti yang ditangkap di sisi Laravel)
+        val errorBody = response.errorBody()?.string()
+        throw Exception("Gagal menambahkan views untuk berita ID $newsId. Code: ${response.code()}. Error: $errorBody")
+    }
+
+
+
+    suspend fun updatePublishStatus(newsId: Int): SingleNewsResponse {
+        val response = apiNewsServices.updatePublishStatus(newsId = newsId)
+
+        if (response.isSuccessful && response.body() != null) {
+            // Berdasarkan respons API Laravel, kita mengembalikan data berita yang sudah diupdate.
+            // Respons sukses biasanya mengandung 'data' berita lengkap dengan 'newViews'.
+            return response.body()!!
+        }
+
+        // Tangani error, misalnya 404 Not Found (seperti yang ditangkap di sisi Laravel)
+        val errorBody = response.errorBody()?.string()
+        throw Exception("Gagal menambahkan views untuk berita ID $newsId. Code: ${response.code()}. Error: $errorBody")
+    }
+
+
+    suspend fun updateDraftStatus(newsId: Int): SingleNewsResponse {
+        val response = apiNewsServices.updateDraftStatus(newsId = newsId)
+
+        if (response.isSuccessful && response.body() != null) {
+            // Berdasarkan respons API Laravel, kita mengembalikan data berita yang sudah diupdate.
+            // Respons sukses biasanya mengandung 'data' berita lengkap dengan 'newViews'.
+            return response.body()!!
+        }
+
+        // Tangani error, misalnya 404 Not Found (seperti yang ditangkap di sisi Laravel)
+        val errorBody = response.errorBody()?.string()
+        throw Exception("Gagal menambahkan views untuk berita ID $newsId. Code: ${response.code()}. Error: $errorBody")
+    }
+
+    suspend fun updateReviewStatus(newsId: Int): SingleNewsResponse {
+        val response = apiNewsServices.updateReviewStatus(newsId = newsId)
 
         if (response.isSuccessful && response.body() != null) {
             // Berdasarkan respons API Laravel, kita mengembalikan data berita yang sudah diupdate.
