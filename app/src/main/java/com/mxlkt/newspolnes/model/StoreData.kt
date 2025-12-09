@@ -3,61 +3,58 @@ package com.mxlkt.newspolnes.model
 import android.os.Build
 import androidx.annotation.RequiresApi
 import java.time.LocalDate
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import com.mxlkt.newspolnes.R // Asumsikan Anda memiliki file R.java untuk resource drawable
-// Hapus semua import Compose dan ViewModel (Composable, viewModel, observeAsState, CategoryViewModel)
-
-/**
- * Objek singleton untuk menyediakan data (bisa dummy atau dimuat)
- * untuk kebutuhan preview, testing, dan pengembangan awal.
- */
-
-// Hapus fungsi DataService Composable yang salah
-/*
-@Composable
-fun DataService(
-    viewModel: CategoryViewModel = viewModel()
-): List<Category> {
-    val categoryList: List<Category> by viewModel.categoryList.observeAsState(initial = emptyList())
-    viewModel.fetchAllCategories() // Ini adalah penyebab loop/bug jika di sini
-    return categoryList
-}
-*/
+import com.mxlkt.newspolnes.R // Pastikan package R sesuai dengan aplikasi Anda
 
 object StoreData {
 
     @RequiresApi(Build.VERSION_CODES.O)
-    fun formatDate(dateString: String): String {
-        try {
-            val inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.ENGLISH)
-            // Menggunakan Locale Indonesia untuk format output
-            val outputFormatter = DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy", Locale("in", "ID"))
-            val date = LocalDate.parse(dateString, inputFormatter)
-            return date.format(outputFormatter)
+    fun formatDate(dateString: String?): String {
+        // Cek null safety agar aplikasi tidak crash jika tanggal kosong
+        if (dateString.isNullOrEmpty()) return "Unknown Date"
+
+        return try {
+            // --- SKENARIO 1: Format API Laravel / ISO 8601 ---
+            // Format: "2025-11-30T09:47:29.000000Z"
+            // Menggunakan ZonedDateTime karena ada zona waktu (Z)
+            val isoFormatter = DateTimeFormatter.ISO_DATE_TIME
+            val dateApi = ZonedDateTime.parse(dateString, isoFormatter)
+
+            // Format Output: "Sun, 30 Nov 2025"
+            val outputFormatter = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy", Locale.ENGLISH)
+            dateApi.format(outputFormatter)
+
         } catch (e: Exception) {
-            // Log error jika format gagal
-            return dateString
+            // --- SKENARIO 2: Format Dummy Data Lokal ---
+            // Format: "2025-11-09" (yyyy-MM-dd)
+            // Menggunakan LocalDate karena tidak ada jam/zona
+            try {
+                val localFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.ENGLISH)
+                val dateLocal = LocalDate.parse(dateString, localFormatter)
+
+                val outputFormatter = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy", Locale.ENGLISH)
+                dateLocal.format(outputFormatter)
+            } catch (e2: Exception) {
+                // Jika masih error (format tidak dikenali), kembalikan string aslinya
+                // e2.printStackTrace() // Aktifkan jika ingin melihat log error di Logcat
+                dateString
+            }
         }
     }
 
     // --- USER DATA ---
 
-    // Menggunakan var mutableListOf untuk memungkinkan perubahan, seperti pada NewsRepository
     @Suppress("EXPERIMENTAL_MUTABILITY_OF_IMMUTABLE_TYPE")
     internal var _userList = mutableListOf(
-        // Catatan: Model User, UserRole, News, Comment, dan Notification harus ada di file lain (atau di sini jika belum)
         User(id = 1, name = "Ade Darmawan", email = "ade@polnesnews.com", password = "password123", role = UserRole.EDITOR),
         User(id = 7, name = "Admin A", email = "a", password = "a", role = UserRole.ADMIN)
     )
 
-    // Getter publik untuk userList (mengembalikan List<User> yang aman, tidak dapat diubah)
     val userList: List<User>
         get() = _userList.toList()
 
-    /**
-     * Fungsi untuk memperbarui daftar pengguna dengan data yang dimuat dari API.
-     */
     fun setUsers(users: List<User>) {
         _userList.clear()
         _userList.addAll(users)
@@ -65,7 +62,6 @@ object StoreData {
 
     // --- CATEGORY DATA ---
 
-    // Daftar kategori dummy (tetap val listOf karena hanya untuk dummy)
     val categoryList = listOf(
         Category(1, "Teknologi", "ini gambar"),
         Category(2, "Ekonomi", "ini gambar")
@@ -73,18 +69,16 @@ object StoreData {
 
     // --- NEWS DATA ---
 
-    // Menggunakan var mutableListOf untuk memungkinkan perubahan
     @Suppress("EXPERIMENTAL_MUTABILITY_OF_IMMUTABLE_TYPE")
     var newsList = mutableListOf(
         News(
             id = 1,
             title = "Inovasi Teknologi Baru di Indonesia",
             categoryId = 1,
-            // Asumsi R.drawable.sample_news1 ada
             imageRes = R.drawable.sample_news1,
             content = "Konten berita ini <b>hanya contoh</b> untuk tampilan awal.",
             authorId = 1,
-            date = "2025-11-09",
+            date = "2025-11-09", // Ini format lokal (Skenario 2)
             views = 4,
             youtubeVideoId = "dQw4w9WgXcQ",
             status = NewsStatus.PUBLISHED
@@ -105,9 +99,7 @@ object StoreData {
 
     // --- COMMENT DATA ---
 
-    // Daftar komentar/rating dummy
     val commentList = listOf(
-        // Asumsi model Comment ada
         Comment(id = 1, newsId = 1, userId = 3, rating = 5, date = "2025-11-10"),
         Comment(id = 2, newsId = 1, userId = 2, rating = 3, date = "2025-11-11"),
         Comment(id = 3, newsId = 2, userId = 3, rating = 2, date = "2025-11-09")
@@ -118,21 +110,12 @@ object StoreData {
     @RequiresApi(Build.VERSION_CODES.O)
     val notifications = newsList.toList().map { news ->
         val categoryName = categoryList.find { it.id == news.categoryId }?.name ?: "Unknown"
-        // Asumsi model Notification ada
         Notification(
             id = news.id,
-            iconRes = R.drawable.ic_news, // Asumsi R.drawable.ic_news ada
+            iconRes = R.drawable.ic_news,
             category = categoryName,
             title = news.title,
-            date = formatDate(news.date)
+            date = formatDate(news.date) // Menggunakan fungsi format baru
         )
     }
 }
-
-// Catatan: Anda perlu memastikan model data berikut didefinisikan di suatu tempat (kemungkinan di file ini juga)
-// data class User(...)
-// enum class UserRole
-// data class News(...)
-// enum class NewsStatus
-// data class Comment(...)
-// data class Notification(...)

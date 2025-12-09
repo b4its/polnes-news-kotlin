@@ -1,9 +1,10 @@
-package com.mxlkt.newspolnes.ui.admin
+package com.mxlkt.newspolnes.ui.editor
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,7 +14,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,38 +24,36 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel // Diperlukan untuk viewModel()
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import com.mxlkt.newspolnes.components.CommonTopBar
-import com.mxlkt.newspolnes.components.DeleteConfirmationDialog
 import com.mxlkt.newspolnes.model.StoreData
-import com.mxlkt.newspolnes.model.Category
-import com.mxlkt.newspolnes.model.UserRole
+import com.mxlkt.newspolnes.model.News
 import com.mxlkt.newspolnes.ui.theme.PolnesGreen
 import com.mxlkt.newspolnes.ui.theme.NewsPolnesTheme
 import com.mxlkt.newspolnes.ui.theme.White
-// Hapus import com.mxlkt.newspolnes.utils.SessionManager
-import com.mxlkt.newspolnes.view.AuthViewModel // Diperlukan untuk akses data pengguna
+import com.mxlkt.newspolnes.view.AuthViewModel
+import com.mxlkt.newspolnes.model.UserRole
+import androidx.compose.runtime.Composable
 
-
-
-import com.mxlkt.newspolnes.R
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddANewCategoryScreen(
-    categoryId: Int? = null,
+fun AddANewArticleScreen(
+    articleId: Int?,
     onBackClick: () -> Unit,
-    onSubmitClick: () -> Unit,
-    onDeleteClick: () -> Unit = {},
-    authViewModel: AuthViewModel = viewModel() // � Injeksi AuthViewModel
+    //  PERUBAHAN 1: Callback onSubmitClick membawa data keluar
+    onSubmitClick: (String, String, String, Int?, Uri?) -> Unit,
+    //  PERUBAHAN 2: Callback untuk request hapus
+    onRequestDelete: (Int) -> Unit = {},
+    authViewModel: AuthViewModel = viewModel()
 ) {
-    // � 1. Ambil Peran Pengguna dari DataStore (Flow)
+    // --- Auth Logic ---
+    val currentAuthorId by authViewModel.userId.collectAsState(initial = null)
     val currentUserRoleString by authViewModel.userRole.collectAsState(initial = null)
 
-    // Konversi string role menjadi enum UserRole
     val currentUserRole = remember(currentUserRoleString) {
         try {
             currentUserRoleString?.let { UserRole.valueOf(it) }
@@ -62,81 +62,83 @@ fun AddANewCategoryScreen(
         }
     }
 
-    // � 2. GUARD: Cek Hak Akses
-    if (currentUserRole != UserRole.ADMIN) {
-        // Tampilkan pesan akses terbatas
+    val isAuthorized = currentAuthorId != null &&
+            (currentUserRole == UserRole.EDITOR || currentUserRole == UserRole.ADMIN)
+
+    if (!isAuthorized) {
         Scaffold(topBar = { CommonTopBar(title = "Access Denied", onBack = onBackClick) }) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(it)
-                    .padding(16.dp),
+                    .padding(it),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    "Error: Hanya Administrator yang dapat mengelola kategori. Role Anda: ${currentUserRoleString ?: "N/A"}",
+                    "Error: Anda harus login sebagai Editor/Admin untuk membuat artikel.",
                     color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyLarge
+                    modifier = Modifier.padding(16.dp),
+                    textAlign = TextAlign.Center
                 )
             }
         }
-        return // � Penting: Hentikan eksekusi Composable jika bukan Admin
+        return
     }
 
-    // --- Logic Form (Hanya dijalankan jika user adalah Admin) ---
-    val isEditMode = categoryId != null
-    val categoryToEdit: Category? = remember {
-        if (isEditMode) {
-            StoreData.categoryList.find { it.id == categoryId }
-        } else {
-            null
-        }
+    // --- Data Logic ---
+    val isEditMode = articleId != null
+
+    val articleToEdit: News? = if (isEditMode) {
+        StoreData.newsList.find { it.id == articleId }
+    } else {
+        null
     }
 
-    var title by remember { mutableStateOf(categoryToEdit?.name ?: "") }
+    // State Form
+    var title by remember { mutableStateOf(articleToEdit?.title ?: "") }
+    var content by remember { mutableStateOf(articleToEdit?.content ?: "") }
+    var youtubeLink by remember { mutableStateOf(articleToEdit?.youtubeVideoId ?: "") }
+
+    // State Image
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
-
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
+    val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
         selectedImageUri = uri
     }
 
-    val topBarColors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-        containerColor = MaterialTheme.colorScheme.primary,
-        titleContentColor = MaterialTheme.colorScheme.onPrimary,
-        navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-        actionIconContentColor = MaterialTheme.colorScheme.onPrimary
-    )
-
-    // Dialog ini tetap ada, tapi hanya dipicu jika tombol delete di NavGraph/Body diaktifkan
-    DeleteConfirmationDialog(
-        showDialog = showDeleteDialog,
-        onDismiss = { showDeleteDialog = false },
-        onConfirm = { onDeleteClick() }
-    )
+    // State Category
+    var categoryDropdownExpanded by remember { mutableStateOf(false) }
+    val initialCategory = StoreData.categoryList.find { it.id == articleToEdit?.categoryId }
+    var selectedCategory by remember { mutableStateOf(initialCategory) }
+    val categories = StoreData.categoryList
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             CommonTopBar(
-                title = if (isEditMode) "Edit Category" else "Add New Category",
+                title = if (isEditMode) "Edit Article" else "Add a New Article",
                 onBack = onBackClick,
-                colors = topBarColors,
-                windowInsets = WindowInsets(0.dp),
-                actions = {
-                    /* Dikosongkan sesuai permintaan user */
-                }
+                windowInsets = WindowInsets(0.dp)
             )
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { onSubmitClick() },
+                onClick = {
+                    //  PERUBAHAN 3: Kirim data ke NavGraph saat tombol ditekan
+                    if (title.isNotEmpty() && content.isNotEmpty() && selectedCategory != null) {
+                        onSubmitClick(
+                            title,
+                            content,
+                            youtubeLink,
+                            selectedCategory?.id,
+                            selectedImageUri
+                        )
+                    } else {
+                        // Opsional: Handle jika data belum lengkap (misal field merah)
+                    }
+                },
                 containerColor = PolnesGreen,
                 contentColor = White
             ) {
-                Icon(Icons.Default.Check, contentDescription = "Save Category")
+                Icon(imageVector = Icons.Default.Send, contentDescription = "Submit Article")
             }
         }
     ) { innerPadding ->
@@ -147,40 +149,24 @@ fun AddANewCategoryScreen(
                     top = innerPadding.calculateTopPadding(),
                     bottom = innerPadding.calculateBottomPadding()
                 )
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Top
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Spacer(modifier = Modifier.height(2.dp))
-
-            // --- INPUT 1: TITLE ---
-            Text(
-                text = "Category Title",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-
             Spacer(modifier = Modifier.height(8.dp))
 
+            // --- INPUT JUDUL ---
+            Text("Title", style = MaterialTheme.typography.titleMedium)
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                placeholder = { Text("Enter category name") },
+                placeholder = { Text("Add title...") },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp)
+                singleLine = true
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // --- INPUT 2: IMAGE PICKER ---
-            Text(
-                text = "Category Image",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
+            // --- INPUT GAMBAR ---
+            Text("Image", style = MaterialTheme.typography.titleMedium)
 
             Box(
                 contentAlignment = Alignment.Center,
@@ -196,26 +182,18 @@ fun AddANewCategoryScreen(
                     )
                     .clickable { launcher.launch("image/*") }
             ) {
-                if (selectedImageUri != null) {
+                val imagePainter = if (selectedImageUri != null) {
+                    rememberAsyncImagePainter(selectedImageUri)
+                } else if (isEditMode && articleToEdit != null) {
+                    painterResource(id = articleToEdit.imageRes)
+                } else {
+                    null
+                }
+
+                if (imagePainter != null) {
                     Image(
-                        painter = rememberAsyncImagePainter(selectedImageUri),
-                        contentDescription = "Selected Image",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.3f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("Tap to change", color = Color.White, style = MaterialTheme.typography.labelMedium)
-                    }
-                } else if (isEditMode && categoryToEdit != null) {
-                    // Tampilkan Gambar Lama dari DummyData
-                    Image(
-                        painter = painterResource(id = R.drawable.category_tech),
-                        contentDescription = "Current Image",
+                        painter = imagePainter,
+                        contentDescription = "Article Image",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
@@ -228,6 +206,7 @@ fun AddANewCategoryScreen(
                         Text("Tap to change", color = Color.White, style = MaterialTheme.typography.labelMedium)
                     }
                 } else {
+                    // Placeholder
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
                             imageVector = Icons.Default.AddPhotoAlternate,
@@ -245,46 +224,87 @@ fun AddANewCategoryScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
 
-            Text(
-                text = "* Recommended ratio 3:2 for best display.",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+            // --- INPUT KATEGORI ---
+            Text("Category", style = MaterialTheme.typography.titleMedium)
+            ExposedDropdownMenuBox(
+                expanded = categoryDropdownExpanded,
+                onExpandedChange = { categoryDropdownExpanded = !categoryDropdownExpanded }
+            ) {
+                OutlinedTextField(
+                    value = selectedCategory?.name ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    placeholder = { Text("Select Category") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryDropdownExpanded) },
+                    modifier = Modifier.fillMaxWidth().menuAnchor()
+                )
+                ExposedDropdownMenu(
+                    expanded = categoryDropdownExpanded,
+                    onDismissRequest = { categoryDropdownExpanded = false }
+                ) {
+                    categories.forEach { category ->
+                        DropdownMenuItem(
+                            text = { Text(category.name) },
+                            onClick = { selectedCategory = category; categoryDropdownExpanded = false }
+                        )
+                    }
+                }
+            }
+
+            // --- INPUT KONTEN ---
+            Text("Text", style = MaterialTheme.typography.titleMedium)
+            OutlinedTextField(
+                value = content,
+                onValueChange = { content = it },
+                placeholder = { Text("Start writing your article") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(250.dp)
             )
+
+            // --- INPUT VIDEO ---
+            Text("Video (Youtube Link)", style = MaterialTheme.typography.titleMedium)
+            OutlinedTextField(
+                value = youtubeLink,
+                onValueChange = { youtubeLink = it },
+                placeholder = { Text("Add a Youtube Link (Optional)") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+
+            //  PERUBAHAN 4: Tombol Request Delete (Hanya muncul saat Edit)
+            if (isEditMode && articleId != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedButton(
+                    onClick = { onRequestDelete(articleId) },
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Request to Delete Article")
+                }
+                Text(
+                    text = "*Deleting requires Admin approval",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Gray,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+            }
 
             Spacer(modifier = Modifier.height(80.dp))
         }
     }
 }
 
-// --- PREVIEW ADD MODE ---
-@Preview(name = "Add Mode", showBackground = true)
-@Composable
-private fun AddCategoryPreview() {
-    NewsPolnesTheme {
-        // Catatan: Di Preview, AuthViewModel akan menggunakan nilai default (null),
-        // sehingga guard biasanya tidak terlewati. Untuk Preview yang lengkap,
-        // Anda mungkin perlu membuat AuthViewModel mock atau mengomentari guard sementara.
-        // Tapi untuk tujuan perbaikan bug ini, versi sekarang sudah benar.
-        AddANewCategoryScreen(
-            categoryId = null,
-            onBackClick = {},
-            onSubmitClick = {}
-        )
-    }
-}
-
-// --- PREVIEW EDIT MODE ---
-@Preview(name = "Edit Mode", showBackground = true)
-@Composable
-private fun EditCategoryPreview() {
-    NewsPolnesTheme {
-        AddANewCategoryScreen(
-            categoryId = 1,
-            onBackClick = {},
-            onSubmitClick = {},
-            onDeleteClick = {}
-        )
-    }
-}
+// --- PREVIEW DI-UPDATE UNTUK MENGHINDARI ERROR ---
