@@ -9,13 +9,12 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+
+// Pastikan import ini sesuai dengan struktur project Anda
 import com.mxlkt.newspolnes.components.CommonTopBar
 import com.mxlkt.newspolnes.components.LiveNewsCard
-import com.mxlkt.newspolnes.components.NewsCard
 import com.mxlkt.newspolnes.view.NewsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -23,54 +22,44 @@ import com.mxlkt.newspolnes.view.NewsViewModel
 fun MostRatedNewsScreen(
     onNavigateBack: () -> Unit,
     onNewsClick: (Int) -> Unit,
-    // Gunakan Hilt atau default factory untuk membuat ViewModel
-    // Di sini menggunakan 'viewModel()' dari Compose Activity Ktx
     viewModel: NewsViewModel = viewModel()
 ) {
     // --- State dari ViewModel ---
-    // Menggunakan LiveData.observeAsState() untuk mengamati perubahan
+    // Mengubah LiveData menjadi State agar Compose bisa bereaksi saat data berubah
     val newsList by viewModel.newsList.observeAsState(initial = emptyList())
     val isLoading by viewModel.isLoading.observeAsState(initial = false)
     val errorMessage by viewModel.errorMessage.observeAsState(initial = null)
-    val context = LocalContext.current
 
-    // Asumsi: View model akan mengambil berita yang sudah disortir oleh backend (views terbanyak).
-    // Jika API tidak memiliki sorting, Anda harus menambahkan parameter query ke fetchNewsList
-    // dan mengimplementasikannya di ApiNewsService/Repository.
+    // --- Konfigurasi Pagination ---
+    val pageSize = 5 // Jumlah data per halaman
 
-    // Catatan: Karena backend menyediakan data yang sudah dipaginasi, kita hanya perlu tahu halaman berikutnya.
-    // Di sini, kita akan simulasikan permintaan halaman berikutnya (page++)
-    var currentPage by rememberSaveable { mutableStateOf(1) }
+    // State untuk halaman saat ini (disimpan agar tidak reset saat rotasi layar)
+    var currentPage by rememberSaveable { mutableIntStateOf(1) }
 
-    // --- Side Effect: Memuat Data Saat Pertama Kali Dimuat ---
+    // Logika sederhana untuk mengecek apakah mungkin masih ada data berikutnya
+    // Jika jumlah list saat ini >= (halaman * 5), asumsinya masih ada sisa data di server
+    val hasMoreNews = newsList.size >= currentPage * pageSize
+
+    // --- Side Effect 1: Muat Data Awal (Page 1) ---
     LaunchedEffect(Unit) {
-        viewModel.fetchNewsMostRatedShortList(page = 1) // Muat halaman 1 saat awal
+        // Hanya muat ulang jika list kosong (agar tidak reload berulang kali saat navigasi balik)
+        if (newsList.isEmpty()) {
+            viewModel.fetchNewsMostRatedShortList(page = 1)
+        }
     }
 
-    // Side Effect: Muat halaman baru saat currentPage berubah (kecuali halaman 1, karena sudah dimuat di LaunchedEffect)
+    // --- Side Effect 2: Muat Halaman Berikutnya ---
+    // Terpanggil setiap kali `currentPage` berubah nilainya
     LaunchedEffect(currentPage) {
         if (currentPage > 1) {
             viewModel.fetchNewsMostRatedShortList(page = currentPage)
         }
     }
 
-    // Mengganti logika sorting manual dengan data dari ViewModel
-    // Karena API kita memuat halaman demi halaman, kita tidak lagi memanipulasi List secara manual.
-
-    // Logika hasMoreNews sederhana (asumsi: jika list yang didapat penuh, maka ada halaman berikutnya)
-    // Dalam implementasi nyata, kita harus mengekstrak informasi total/next_page_url dari NewsListResponse
-    // Untuk tujuan ini, saya akan menggunakan simulasi sederhana berdasarkan total data yang ada.
-    // (Dalam kasus nyata, Anda perlu menyimpan PaginatedNewsData di ViewModel untuk akurasi)
-    val pageLimit = 10 // Asumsi page limit di backend
-    val hasMoreNews = newsList.size >= currentPage * pageLimit // Jika size sama dengan pageLimit kali halaman, anggap ada lebih banyak
-
-    // Hanya tampilkan 10 berita terbaru (atau jumlah yang sesuai dengan pageLimit) saat dimuat
-    // Kita tidak perlu take() karena ViewModel sudah mengakumulasi semua halaman yang dimuat.
-
     Scaffold(
         topBar = {
             CommonTopBar(
-                title = "Most Rated News",
+                title = "Most Rated",
                 onBack = onNavigateBack
             )
         }
@@ -80,12 +69,12 @@ fun MostRatedNewsScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Tampilkan error message jika ada
+            // --- Error Handling (Pop-up Dialog) ---
             if (errorMessage != null) {
                 AlertDialog(
                     onDismissRequest = { viewModel.clearStatusMessages() },
                     title = { Text("Error") },
-                    text = { Text(errorMessage!!) },
+                    text = { Text(errorMessage ?: "Terjadi kesalahan") },
                     confirmButton = {
                         Button(onClick = { viewModel.clearStatusMessages() }) {
                             Text("OK")
@@ -94,7 +83,9 @@ fun MostRatedNewsScreen(
                 )
             }
 
-            // Tampilkan Loading Indicator
+            // --- Logika Tampilan Utama ---
+
+            // Kondisi 1: Loading Awal & Data Benar-benar Kosong
             if (isLoading && newsList.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -102,83 +93,62 @@ fun MostRatedNewsScreen(
                 ) {
                     CircularProgressIndicator()
                 }
-            } else if (newsList.isEmpty() && !isLoading && errorMessage == null) {
-                // Tampilkan jika tidak ada data setelah loading selesai
+            }
+            // Kondisi 2: Data Kosong, Tidak Loading, Tidak Error
+            else if (newsList.isEmpty() && !isLoading && errorMessage == null) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Tidak ada berita yang dapat ditampilkan saat ini.")
+                    Text("Tidak ada berita yang dapat ditampilkan.")
                 }
-            } else {
-                // Tampilkan Daftar Berita dan Tombol Load More
+            }
+            // Kondisi 3: Ada Data (Tampilkan List)
+            else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 16.dp)
+                    contentPadding = PaddingValues(vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Item Berita
                     items(newsList, key = { it.id }) { newsModel ->
-                        // NewsCard butuh object News. Kita harus konversi NewsModel ke News
-                        // atau perbarui NewsCard untuk menerima NewsModel.
-                        // Asumsi: NewsCard diubah atau menerima NewsModel yang sudah sangat mirip.
-                        // Jika NewsCard tidak dapat diubah, Anda perlu fungsi konversi (NewsModel -> News)
-
-                        // Karena NewsCard sebelumnya menggunakan model News lokal,
-                        // saya akan asumsikan Anda telah memperbaruinya agar menerima NewsModel,
-                        // atau kita buat konversi sederhana:
-
-                        // News(
-                        //     id = newsModel.id,
-                        //     title = newsModel.title,
-                        //     categoryId = newsModel.categoryId,
-                        //     imageRes = 0, // Tidak ada di NewsModel
-                        //     content = newsModel.content,
-                        //     authorId = newsModel.authorId,
-                        //     date = newsModel.created_at, // Menggunakan created_at sebagai date
-                        //     views = newsModel.views,
-                        //     youtubeVideoId = newsModel.linkYoutube,
-                        //     status = NewsStatus.DRAFT // Asumsi default
-                        // )
-
-                        // Jika NewsCard diubah untuk menerima NewsModel, gunakan:
                         LiveNewsCard(
-                            newsModel = newsModel, // *Perlu penyesuaian di NewsCard.kt*
+                            newsModel = newsModel,
                             onClick = { onNewsClick(newsModel.id) }
                         )
                     }
 
-                    // Tombol "Load More"
+                    // --- Bagian Bawah List (Tombol Load More / Loader Kecil) ---
                     item {
-                        if (isLoading && newsList.isNotEmpty()) {
-                            // Tampilkan loading di bagian bawah saat memuat halaman berikutnya
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator()
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isLoading) {
+                                // Tampilkan Loading kecil saat memuat halaman berikutnya (append)
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            } else if (hasMoreNews) {
+                                // Tombol Load More
+                                OutlinedButton(
+                                    onClick = {
+                                        if (!isLoading) {
+                                            currentPage++
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Load More (+5 Data)")
+                                }
+                            } else {
+                                // Pesan Habis
+                                Text(
+                                    text = "Semua berita sudah dimuat.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
-                        } else if (hasMoreNews && !isLoading) {
-                            OutlinedButton(
-                                onClick = { currentPage++ }, // Tambah nomor halaman, memicu LaunchedEffect
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp)
-                                    .padding(horizontal = 16.dp)
-                            ) {
-                                Text("Load More (Page ${currentPage + 1})")
-                            }
-                        } else if (newsList.isNotEmpty()) {
-                            // Tampilkan jika semua berita sudah dimuat
-                            Text(
-                                "Semua berita sudah dimuat.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp)
-                                    .wrapContentWidth(Alignment.CenterHorizontally)
-                            )
                         }
                     }
                 }
@@ -186,16 +156,3 @@ fun MostRatedNewsScreen(
         }
     }
 }
-
-// Catatan: Preview memerlukan NewsViewModel, yang mungkin sulit disiapkan tanpa framework DI (seperti Hilt/Koin).
-// Untuk tujuan implementasi, Anda dapat menghapus Preview atau menggunakan ViewModel palsu.
-/*
-@Preview(showBackground = true)
-@Composable
-private fun MostRatedNewsScreenPreview() {
-    MostRatedNewsScreen(
-        onNavigateBack = {},
-        onNewsClick = {}
-    )
-}
-*/

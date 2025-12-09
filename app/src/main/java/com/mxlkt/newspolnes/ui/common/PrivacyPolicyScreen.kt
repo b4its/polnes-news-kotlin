@@ -25,18 +25,10 @@ import androidx.compose.ui.unit.dp
 fun PrivacyPolicyScreen(
     onNavigateBack: () -> Unit
 ) {
-    Scaffold(
-        topBar = {
-            CommonTopBar(
-                title = "Privacy & Policy",
-                onBack = onNavigateBack
-            )
-        }
-    ) { innerPadding ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
@@ -70,7 +62,7 @@ fun PrivacyPolicyScreen(
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
-}
+
 
 @Composable
 fun PolicySection(title: String, content: String) {

@@ -6,6 +6,7 @@ import com.mxlkt.newspolnes.api.ApiClient // Asumsi ApiClient memiliki instance 
 import com.mxlkt.newspolnes.model.Category
 import com.mxlkt.newspolnes.model.CategoryRequest
 import com.mxlkt.newspolnes.model.CategoryResponse
+import com.mxlkt.newspolnes.model.NewsPagination
 import com.mxlkt.newspolnes.model.SingleCategoryResponse
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -70,6 +71,31 @@ class CategoryRepository(
         val errorBody = response.errorBody()?.string()
         throw Exception("Gagal membuat kategori. Code: ${response.code()}. Error: $errorBody")
     }
+
+    suspend fun getNewsByCategory(categoryId: Int, page: Int = 1): NewsPagination {
+        // Panggil API (sesuai interface yang kita buat sebelumnya)
+        val response = apiCategoryService.getNewsInCategory(categoryId, page)
+
+        // Cek Sukses
+        if (response.isSuccessful) {
+            val body = response.body()
+            // body.data di sini merujuk ke objek 'NewsPagination' di model NewsByCategoryResponse
+            if (body != null) {
+                return body.data
+            }
+        }
+
+        // Handle Error
+        // Kita parsing sedikit agar tahu jika kategorinya tidak ditemukan (404)
+        val errorBody = response.errorBody()?.string()
+
+        if (response.code() == 404) {
+            throw Exception("Kategori atau Berita tidak ditemukan.")
+        }
+
+        throw Exception("Gagal memuat berita kategori ini. Code: ${response.code()} | $errorBody")
+    }
+
 
     suspend fun updateCategory(categoryId: Int, name: String, imageFile: File?): Category {
 

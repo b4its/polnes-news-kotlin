@@ -4,6 +4,7 @@ import com.mxlkt.newspolnes.model.BasicResponse
 import com.mxlkt.newspolnes.model.BasicResponses
 import com.mxlkt.newspolnes.model.CategoryRequest
 import com.mxlkt.newspolnes.model.CategoryResponse
+import com.mxlkt.newspolnes.model.NewsByCategoryResponse
 import com.mxlkt.newspolnes.model.SingleCategoryResponse
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -16,6 +17,7 @@ import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface ApiCategoryService {
 
@@ -25,10 +27,11 @@ interface ApiCategoryService {
     @GET("category/get")
     suspend fun getAllCategories(): Response<CategoryResponse>
 
-    @GET("category/news/get/{id}")
+    @GET("news/category/get/{id}")
     suspend fun getNewsInCategory(
-        @Path("id") categoryId: Int
-    ): Response<CategoryResponse>
+        @Path("id") categoryId: Int,
+        @Query("page") page: Int? = 1 // Opsional: untuk handle pagination halaman 2, 3, dst.
+    ): Response<NewsByCategoryResponse>
 
     // --- CREATE ---
     // HAPUS @Header("X-Api-Key") apiKey: String
@@ -61,7 +64,7 @@ interface ApiCategoryService {
 
     // DELETE Category
     // Pastikan URL-nya cocok dengan route Laravel (misal: "category/{id}" atau "category/delete/{id}")
-    @DELETE("category/{id}")
+    @DELETE("category/delete/{id}")
     suspend fun deleteCategory(
         @Path("id") categoryId: Int
     ): Response<BasicResponses>

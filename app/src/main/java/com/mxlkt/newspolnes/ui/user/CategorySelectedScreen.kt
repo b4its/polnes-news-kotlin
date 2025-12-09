@@ -3,73 +3,108 @@ package com.mxlkt.newspolnes.ui.user
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mxlkt.newspolnes.components.CommonTopBar
-import com.mxlkt.newspolnes.components.NewsCard
-import com.mxlkt.newspolnes.model.StoreData
-import com.mxlkt.newspolnes.ui.theme.NewsPolnesTheme
+import com.mxlkt.newspolnes.components.LiveNewsCard
+import com.mxlkt.newspolnes.components.LiveNewsCategoryCard
+import com.mxlkt.newspolnes.viewmodel.CategoryViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategorySelectedScreen(
-    categoryName: String, // Menerima nama kategori sebagai judul TopBar
+    categoryId: Int,
+    categoryName: String,
     onNavigateBack: () -> Unit,
-    onNewsClick: (Int) -> Unit // Untuk navigasi ke NewsDetail
+    onNewsClick: (Int) -> Unit,
+
+    // HAPUS NewsViewModel, Cukup pakai satu saja
+    categoryViewModel: CategoryViewModel = viewModel()
 ) {
-    // 1. Cari ID Kategori
-    val category = StoreData.categoryList.find { it.name == categoryName }
-    val categoryId = category?.id ?: 0
+    // 1. OBSERVE STATE (PERBAIKAN DI SINI)
+    // Gunakan 'categoryViewModel.newsInCategoryList' (sesuai nama variabel di ViewModel yg kita buat tadi)
+    // BUKAN NewsViewModel
+    val newsList by categoryViewModel.newsInCategoryList.observeAsState(emptyList())
 
-    // 2. Filter Berita berdasarkan ID Kategori
-    // Jika ID tidak valid (0), tampilkan semua berita (atau array kosong)
-    val filteredNewsList = if (categoryId > 0) {
-        StoreData.newsList.filter { it.categoryId == categoryId }
-    } else {
-        emptyList()
+    val isLoading by categoryViewModel.isLoading.observeAsState(false)
+    val errorMessage by categoryViewModel.errorMessage.observeAsState()
+
+    // 2. TRIGGER API CALL
+    LaunchedEffect(categoryId) {
+        if (categoryId > 0) {
+            categoryViewModel.fetchNewsByCategory(categoryId)
+        }
     }
-
-    // Tentukan judul TopBar, default ke "Unknown" jika categoryName tidak ditemukan
-    val screenTitle = categoryName.ifEmpty { "Category" }
 
     Scaffold(
         topBar = {
-            // Menggunakan CommonTopBar dengan nama kategori sebagai judul
             CommonTopBar(
-                title = screenTitle,
-                onBack = onNavigateBack // Menggunakan fungsi back
+                title = categoryName.ifEmpty { "Kategori" },
+                onBack = onNavigateBack
             )
         }
     ) { paddingValues ->
-        // Tampilkan daftar berita yang sudah difilter
-        LazyColumn(
+
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(bottom = 16.dp)
+                .padding(paddingValues)
         ) {
-            items(filteredNewsList) { news ->
-                NewsCard(
-                    news = news,
-                    onClick = { onNewsClick(news.id) }
+            // A. Loading
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center)
                 )
             }
+            // B. Error
+            else if (errorMessage != null) {
+                Text(
+                    text = errorMessage ?: "Terjadi kesalahan",
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(16.dp)
+                )
+            }
+            // C. Success
+            else {
+                if (newsList.isEmpty()) {
+                    Text(
+                        text = "Belum ada berita di kategori ini.",
+                        modifier = Modifier.align(Alignment.Center),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.Gray
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(newsList) { news ->
+                            LiveNewsCategoryCard(
+                                newsModel = news,
+                                onClick = { onNewsClick(news.id) },
+                                categoryNameOverride = categoryName
+                            )
+                        }
+                    }
+                }
+            }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun CategorySelectedScreenPreview() {
-    NewsPolnesTheme {
-        CategorySelectedScreen(
-            categoryName = "Teknologi",
-            onNavigateBack = {},
-            onNewsClick = {}
-        )
     }
 }

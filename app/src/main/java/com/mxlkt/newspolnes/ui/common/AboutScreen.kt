@@ -28,18 +28,10 @@ import com.mxlkt.newspolnes.components.CommonTopBar
 fun AboutScreen(
     onNavigateBack: () -> Unit
 ) {
-    Scaffold(
-        topBar = {
-            CommonTopBar(
-                title = "About",
-                onBack = onNavigateBack
-            )
-        }
-    ) { innerPadding ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -110,7 +102,7 @@ fun AboutScreen(
             )
         }
     }
-}
+
 
 @Preview(showBackground = true)
 @Composable

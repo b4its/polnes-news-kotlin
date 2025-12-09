@@ -20,12 +20,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.mxlkt.newspolnes.ui.user.LiveNewsDetailScreen
-import com.mxlkt.newspolnes.ui.user.NewsDetailScreen
+import com.mxlkt.newspolnes.ui.user.*
 import com.mxlkt.newspolnes.components.PolnesTopAppBar
 import com.mxlkt.newspolnes.components.TitleOnlyTopAppBar
 import com.mxlkt.newspolnes.components.UserBottomNav
-import com.mxlkt.newspolnes.ui.user.*
 import com.mxlkt.newspolnes.ui.common.PrivacyPolicyScreen
 import com.mxlkt.newspolnes.ui.common.AboutScreen
 
@@ -34,14 +32,14 @@ import com.mxlkt.newspolnes.ui.common.AboutScreen
 @Composable
 fun UserNavGraph(
     rootNavController: NavHostController,
-    onLogout: () -> Unit // Parameter Logout
+    onLogout: () -> Unit
 ) {
     val userNavController = rememberNavController()
     val navBackStackEntry by userNavController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: "Home"
 
     val userScreens = listOf("Home", "Categories", "Notifications", "Settings")
-    val showBars = userScreens.any { currentRoute.startsWith(it) }
+    val showBars = userScreens.any { currentRoute == it }
 
     Scaffold(
         topBar = {
@@ -76,7 +74,6 @@ fun UserNavGraph(
             navController = userNavController,
             startDestination = "Home",
             modifier = if (showBars) Modifier.padding(innerPadding) else Modifier.fillMaxSize(),
-            // Animasi Transisi Halaman
             enterTransition = { slideInHorizontally(initialOffsetX = { 1000 }, animationSpec = tween(300)) },
             exitTransition = { slideOutHorizontally(targetOffsetX = { -1000 }, animationSpec = tween(300)) },
             popEnterTransition = { slideInHorizontally(initialOffsetX = { -1000 }, animationSpec = tween(300)) },
@@ -92,11 +89,16 @@ fun UserNavGraph(
                 )
             }
 
-            // 2. CATEGORIES
+            // -------------------------------------------------------------
+            // 2. CATEGORIES (BAGIAN YANG DIPERBAIKI)
+            // -------------------------------------------------------------
             composable("Categories") {
                 CategoriesScreen(
-                    onCategoryClick = { categoryName ->
-                        userNavController.navigate("CategorySelected/$categoryName")
+                    onCategoryClick = { category ->
+                        // PERBAIKAN: Tambahkan category.name di URL navigasi
+                        // Sebelumnya: "CategorySelected/${category.id}" (SALAH - Kurang Nama)
+                        // Sekarang:
+                        userNavController.navigate("CategorySelected/${category.id}/${category.name}")
                     }
                 )
             }
@@ -113,7 +115,7 @@ fun UserNavGraph(
             // 4. SETTINGS
             composable("Settings") {
                 SettingsScreen(
-                    onLogout = onLogout, // Panggil fungsi onLogout yang diteruskan
+                    onLogout = onLogout,
                     onPrivacyClick = { userNavController.navigate("PrivacyPolicy") },
                     onAboutClick = { userNavController.navigate("About") }
                 )
@@ -123,18 +125,24 @@ fun UserNavGraph(
 
             // Detail Kategori
             composable(
-                route = "CategorySelected/{categoryName}",
-                arguments = listOf(navArgument("categoryName") { type = NavType.StringType })
+                route = "CategorySelected/{categoryId}/{categoryName}",
+                arguments = listOf(
+                    navArgument("categoryId") { type = NavType.IntType },
+                    navArgument("categoryName") { type = NavType.StringType }
+                )
             ) { backStackEntry ->
+                val categoryId = backStackEntry.arguments?.getInt("categoryId") ?: 0
                 val categoryName = backStackEntry.arguments?.getString("categoryName") ?: ""
+
                 CategorySelectedScreen(
+                    categoryId = categoryId,
                     categoryName = categoryName,
                     onNavigateBack = { userNavController.popBackStack() },
-                    onNewsClick = { newsId -> userNavController.navigate("NewsDetail/$newsId") }
+                    onNewsClick = { newsId -> userNavController.navigate("LiveNewsDetail/$newsId") }
                 )
             }
 
-            // List Berita: Recent
+            // List Berita Lainnya
             composable("RecentNews") {
                 RecentNewsScreen(
                     onNavigateBack = { userNavController.popBackStack() },
@@ -142,7 +150,6 @@ fun UserNavGraph(
                 )
             }
 
-            // List Berita: Most Viewed
             composable("MostViewedNews") {
                 MostViewedNewsScreen(
                     onNavigateBack = { userNavController.popBackStack() },
@@ -150,7 +157,6 @@ fun UserNavGraph(
                 )
             }
 
-            // List Berita: Most Rated
             composable("MostRatedNews") {
                 MostRatedNewsScreen(
                     onNavigateBack = { userNavController.popBackStack() },
@@ -158,20 +164,14 @@ fun UserNavGraph(
                 )
             }
 
-            // Halaman Umum: Privacy & About
             composable("PrivacyPolicy") {
-                PrivacyPolicyScreen(
-                    onNavigateBack = { userNavController.popBackStack() }
-                )
+                PrivacyPolicyScreen(onNavigateBack = { userNavController.popBackStack() })
             }
 
             composable("About") {
-                AboutScreen(
-                    onNavigateBack = { userNavController.popBackStack() }
-                )
+                AboutScreen(onNavigateBack = { userNavController.popBackStack() })
             }
 
-            // Halaman Detail Berita (Tujuan Akhir)
             composable(
                 route = "NewsDetail/{newsId}",
                 arguments = listOf(navArgument("newsId") { type = NavType.IntType })
@@ -182,7 +182,7 @@ fun UserNavGraph(
                     newsId = newsId
                 )
             }
-            // Halaman Detail Berita (Tujuan Akhir)
+
             composable(
                 route = "LiveNewsDetail/{newsId}",
                 arguments = listOf(navArgument("newsId") { type = NavType.IntType })

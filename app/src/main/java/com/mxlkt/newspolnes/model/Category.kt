@@ -68,3 +68,39 @@ data class BasicResponses(
     @SerializedName("message")
     val message: String
 )
+
+
+
+data class NewsPagination(
+    @SerializedName("current_page")
+    val currentPage: Int,
+
+    @SerializedName("last_page")
+    val lastPage: Int,
+
+    @SerializedName("total")
+    val total: Int,
+
+    @SerializedName("data")
+    val newsList: List<NewsModel> // Data beritanya ada di sini
+)
+
+/**
+ * Response KHUSUS untuk endpoint 'newsInCategory'
+ */
+data class NewsByCategoryResponse(
+    @SerializedName("status")
+    val status: String,
+
+    @SerializedName("message")
+    val message: String,
+
+    @SerializedName("category_name")
+    val categoryName: String, // Menangkap nama kategori dari PHP
+
+    @SerializedName("count")
+    val count: Int,
+
+    @SerializedName("data")
+    val data: NewsPagination // Objek paginasi, bukan List<Category>
+)

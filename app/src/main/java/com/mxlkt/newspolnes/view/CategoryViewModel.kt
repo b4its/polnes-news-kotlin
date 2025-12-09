@@ -6,54 +6,62 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.mxlkt.newspolnes.model.Category
-import com.mxlkt.newspolnes.model.CategoryRequest
+import com.mxlkt.newspolnes.model.NewsModel // Pastikan model ini sudah ada
 import com.mxlkt.newspolnes.repository.CategoryRepository
 import kotlinx.coroutines.launch
 import java.io.File
 
 /**
- * ViewModel untuk mengelola data kategori, menyesuaikan pola dari NewsViewModel.
+ * ViewModel untuk mengelola data kategori dan berita di dalamnya.
+ * Menangani logic bisnis dan komunikasi antara Repository dan UI.
  */
 class CategoryViewModel(application: Application) : AndroidViewModel(application) {
 
-    // Instance Repository (Diinisialisasi secara sederhana)
+    // Instance Repository
     private val repository = CategoryRepository()
 
-    // --- LiveData untuk State UI ---
+    // ==========================================
+    // LIVE DATA (STATE UI)
+    // ==========================================
 
-    // Daftar Kategori (berisi list data kategori)
+    // 1. Daftar Berita berdasarkan Kategori (FIX: Ditambahkan public val)
+    private val _newsInCategoryList = MutableLiveData<List<NewsModel>>(emptyList())
+    val newsInCategoryList: LiveData<List<NewsModel>> = _newsInCategoryList
+
+    // 2. Daftar Kategori (Untuk Menu Utama / Admin)
     private val _categoryList = MutableLiveData<List<Category>>(emptyList())
     val categoryList: LiveData<List<Category>> = _categoryList
 
-    // State Loading
+    // 3. State Loading (Spinner)
     private val _isLoading = MutableLiveData(false)
     val isLoading: LiveData<Boolean> = _isLoading
 
-    // Pesan Error
+    // 4. Pesan Error (Untuk ditampilkan di Snackbar/Text Merah)
     private val _errorMessage = MutableLiveData<String?>()
     val errorMessage: LiveData<String?> = _errorMessage
 
-    // Pesan Sukses untuk operasi CUD
+    // 5. Pesan Sukses (Feedback setelah Create/Update/Delete)
     private val _successMessage = MutableLiveData<String?>()
     val successMessage: LiveData<String?> = _successMessage
 
-    // Data kategori tunggal hasil operasi CREATE/UPDATE
+    // 6. Single Category (Hasil return dari Create/Update)
     private val _singleCategory = MutableLiveData<Category?>()
     val singleCategory: LiveData<Category?> = _singleCategory
 
 
-    // --- Fungsi API ---
+    // ==========================================
+    // FUNGSI API (ACTION)
+    // ==========================================
 
     /**
-     * Memuat daftar semua kategori.
+     * Mengambil semua kategori (READ ALL).
      */
     fun fetchAllCategories() {
         _isLoading.value = true
         _errorMessage.value = null
         viewModelScope.launch {
             try {
-                // Repository mengembalikan List<Category> atau melempar Exception
-                val categories: List<Category> = repository.getAllCategories()
+                val categories = repository.getAllCategories()
                 _categoryList.value = categories
             } catch (e: Exception) {
                 _errorMessage.value = "Gagal memuat kategori: ${e.message}"
@@ -64,7 +72,42 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
     }
 
     /**
-     * Membuat kategori baru.
+     * Mengambil berita spesifik berdasarkan ID Kategori.
+     * @param categoryId ID Kategori yang dipilih user.
+     * @param page Halaman paginasi (default 1).
+     */
+    fun fetchNewsByCategory(categoryId: Int, page: Int = 1) {
+        _isLoading.value = true
+        _errorMessage.value = null
+
+        // Reset list jika memuat halaman pertama agar UI bersih dari data lama
+        if (page == 1) {
+            _newsInCategoryList.value = emptyList()
+        }
+
+        viewModelScope.launch {
+            try {
+                // Panggil repository
+                val paginationResult = repository.getNewsByCategory(categoryId, page)
+
+                // Update LiveData dengan list berita yang didapat
+                _newsInCategoryList.value = paginationResult.newsList
+
+                // Cek jika kosong
+                if (paginationResult.newsList.isEmpty()) {
+                    _errorMessage.value = "Tidak ada berita di kategori ini."
+                }
+
+            } catch (e: Exception) {
+                _errorMessage.value = "Gagal memuat berita: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Membuat kategori baru (CREATE).
      */
     fun createCategory(name: String, imageFile: File) {
         _isLoading.value = true
@@ -73,19 +116,14 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
 
         viewModelScope.launch {
             try {
-                // Panggil fungsi repository yang baru (yang support Multipart)
-                // Kita pass 'name' dan 'imageFile' langsung
-                val newCategory: Category = repository.createCategory(name, imageFile)
-
+                val newCategory = repository.createCategory(name, imageFile)
                 _successMessage.value = "Kategori ${newCategory.name} berhasil dibuat!"
                 _singleCategory.value = newCategory
 
                 // Refresh list agar data baru muncul
                 fetchAllCategories()
-
             } catch (e: Exception) {
                 _errorMessage.value = "Gagal membuat kategori: ${e.message}"
-                // Log error untuk debugging jika perlu
                 e.printStackTrace()
             } finally {
                 _isLoading.value = false
@@ -94,7 +132,7 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
     }
 
     /**
-     * Memperbarui kategori yang sudah ada.
+     * Memperbarui kategori (UPDATE).
      */
     fun updateCategory(categoryId: Int, name: String, imageFile: File?) {
         _isLoading.value = true
@@ -103,18 +141,14 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
 
         viewModelScope.launch {
             try {
-                // Panggil repository dengan parameter baru (id, name, file)
-                val updatedCategory: Category = repository.updateCategory(categoryId, name, imageFile)
-
+                val updatedCategory = repository.updateCategory(categoryId, name, imageFile)
                 _successMessage.value = "Kategori ${updatedCategory.name} berhasil diperbarui!"
                 _singleCategory.value = updatedCategory
 
-                // Refresh list agar perubahan langsung terlihat di UI
+                // Refresh list agar perubahan terlihat
                 fetchAllCategories()
-
             } catch (e: Exception) {
                 _errorMessage.value = "Gagal memperbarui kategori: ${e.message}"
-                // Log untuk debugging
                 e.printStackTrace()
             } finally {
                 _isLoading.value = false
@@ -123,7 +157,7 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
     }
 
     /**
-     * Menghapus kategori berdasarkan ID.
+     * Menghapus kategori (DELETE).
      */
     fun deleteCategory(categoryId: Int) {
         _isLoading.value = true
@@ -132,15 +166,11 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
 
         viewModelScope.launch {
             try {
-                // 1. Panggil Repository
                 val message = repository.deleteCategory(categoryId)
-
-                // 2. Set pesan sukses
                 _successMessage.value = message
 
-                // 3. PENTING: Refresh data agar item yang dihapus hilang dari layar
+                // Refresh list agar item hilang dari layar
                 fetchAllCategories()
-
             } catch (e: Exception) {
                 _errorMessage.value = "Gagal menghapus kategori: ${e.message}"
                 e.printStackTrace()
@@ -151,7 +181,7 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
     }
 
     /**
-     * Fungsi untuk mereset pesan status
+     * Membersihkan pesan status (misal setelah Toast muncul).
      */
     fun clearStatusMessages() {
         _errorMessage.value = null

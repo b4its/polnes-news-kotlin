@@ -8,111 +8,97 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext // Diperlukan untuk AndroidViewModel
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mxlkt.newspolnes.components.CategoryCard
 import com.mxlkt.newspolnes.components.TitleOnlyTopAppBar
 import com.mxlkt.newspolnes.components.UserBottomNav
-import com.mxlkt.newspolnes.model.Category // Import Model Category
-import com.mxlkt.newspolnes.viewmodel.CategoryViewModel // Import ViewModel
-
-// ASUMSI: Anda masih memiliki StoreData.kt untuk Preview
-// ASUMSI: Anda masih memiliki komponen CategoryCard, TitleOnlyTopAppBar, UserBottomNav
+import com.mxlkt.newspolnes.model.Category
+import com.mxlkt.newspolnes.viewmodel.CategoryViewModel
 
 /**
- * Layar yang menampilkan daftar semua kategori berita untuk pengguna.
+ * Layar yang menampilkan daftar semua kategori berita.
  */
 @Composable
 fun CategoriesScreen(
-    onCategoryClick: (Int) -> Unit // Menerima ID Kategori (Int)
+    // HAPUS: categoryId: Int (Tidak diperlukan untuk layar list utama)
+    // UBAH: Callback menerima Object Category (agar bisa ambil ID & Name di NavGraph)
+    onCategoryClick: (Category) -> Unit
 ) {
     // 1. Injeksi ViewModel
-    // Karena CategoryViewModel adalah AndroidViewModel, kita perlu context dari compose.
-    val context = LocalContext.current
-    val viewModel: CategoryViewModel = viewModel(
-        // Factory dihilangkan karena CategoryViewModel yang baru dibuat adalah AndroidViewModel
-        // yang hanya membutuhkan Application (yang disediakan oleh viewModel() secara default
-        // ketika berada dalam konteks Application/Activity).
-    )
+    val viewModel: CategoryViewModel = viewModel()
 
-    // 2. Amati LiveData dari ViewModel yang baru dibuat
-    // Menggunakan LiveData: categoryList, isLoading, errorMessage
+    // 2. Amati LiveData
     val categories by viewModel.categoryList.observeAsState(initial = emptyList())
     val isLoading by viewModel.isLoading.observeAsState(initial = false)
     val errorMessage by viewModel.errorMessage.observeAsState(initial = null)
 
-    // 3. Panggil fungsi untuk mengambil data ketika komponen pertama kali disusun
+    // 3. Panggil API saat layar dibuka
     LaunchedEffect(Unit) {
-        // Nama fungsi yang benar di ViewModel yang baru dibuat: fetchAllCategories()
         viewModel.fetchAllCategories()
     }
 
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // A. Loading Indicator
+        if (isLoading) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+        }
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-        ) {
-
-            // Tampilkan indikator loading
-            if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            }
-
-            // Tampilkan error (jika ada)
-            else if (errorMessage != null) {
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "Gagal memuat kategori: ${errorMessage}",
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(onClick = { viewModel.fetchAllCategories() }) {
-                        Text("Coba Lagi")
-                    }
+        // B. Error Message
+        else if (errorMessage != null) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Gagal memuat kategori: $errorMessage",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(onClick = { viewModel.fetchAllCategories() }) {
+                    Text("Coba Lagi")
                 }
             }
+        }
 
-            // Tampilkan pesan kosong
-            else if (categories.isEmpty()) {
-                Text(
-                    text = "Tidak ada kategori ditemukan.",
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
+        // C. Empty State
+        else if (categories.isEmpty()) {
+            Text(
+                text = "Tidak ada kategori ditemukan.",
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
 
-            // Tampilkan daftar kategori
-            else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    items(categories) { category ->
-                        CategoryCard(
-                            category = category,
-                            onClick = {
-                                // Mengirim ID Kategori (Int) untuk navigasi ke daftar berita
-                                onCategoryClick(category.id)
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                    }
+        // D. List Data
+        else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                items(categories) { category ->
+                    CategoryCard(
+                        category = category,
+                        onClick = {
+                            // PENTING: Kirim object category ke callback
+                            onCategoryClick(category)
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
             }
         }
     }
+}
 
+// --- Preview Section ---
 
-// --- Preview menggunakan Dummy Data ---
-
-// Model dummy untuk Preview, karena kita tidak punya StoreData.kt
+// Dummy data untuk preview
 private val dummyCategoryList = listOf(
     Category(1, "Politik", "url_gambar_1"),
     Category(2, "Olahraga", "url_gambar_2"),
@@ -124,9 +110,7 @@ private val dummyCategoryList = listOf(
 @Composable
 private fun CategoriesScreenPreview() {
     Scaffold(
-        topBar = {
-            TitleOnlyTopAppBar(title = "Categories")
-        },
+        topBar = { TitleOnlyTopAppBar(title = "Categories") },
         bottomBar = {
             UserBottomNav(
                 currentRoute = "Categories",

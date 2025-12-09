@@ -9,94 +9,114 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.ThumbUp
-import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.* // Import perluasan untuk collectAsState
+import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalContext // Diperlukan untuk SessionManager
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mxlkt.newspolnes.components.AccountInfoCard
-import com.mxlkt.newspolnes.model.StoreData
-import com.mxlkt.newspolnes.model.NewsStatus
 import com.mxlkt.newspolnes.model.User
 import com.mxlkt.newspolnes.model.UserRole
 import com.mxlkt.newspolnes.ui.theme.*
 import com.mxlkt.newspolnes.utils.SessionManager
+// Import ViewModel
+import com.mxlkt.newspolnes.view.NewsViewModel
+import com.mxlkt.newspolnes.view.UserViewModel
+import com.mxlkt.newspolnes.view.UserListState
+import com.mxlkt.newspolnes.viewmodel.CategoryViewModel // PENTING: Import ini ditambahkan
 
 @Composable
-fun AdminDashboardScreen() {
+fun AdminDashboardScreen(
+    newsViewModel: NewsViewModel = viewModel(),
+    userViewModel: UserViewModel = viewModel(),
+    categoryViewModel: CategoryViewModel = viewModel()
+) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
-
-    // � PERBAIKAN: Ambil ID user dari SessionManager (Flow)
     val loggedInUserId by sessionManager.userId.collectAsState(initial = null)
 
-    // � Cari objek User Admin yang sedang login
-    val currentUser = remember(loggedInUserId) {
-        loggedInUserId?.let { id -> StoreData.userList.find { it.id == id && it.role == UserRole.ADMIN } }
+    // --- 1. Fetch Data saat pertama kali load ---
+    LaunchedEffect(Unit) {
+        newsViewModel.fetchNewsList(1)
+        newsViewModel.fetchNewsMostRatedShortList()
+        userViewModel.fetchAllUsers()
+        categoryViewModel.fetchAllCategories()
     }
 
-    // --- 1. Hitung Data Statistik Global (Menggunakan remember untuk efisiensi) ---
-    val pendingNews = remember {
-        StoreData.newsList.count { it.status == NewsStatus.PENDING_REVIEW || it.status == NewsStatus.PENDING_DELETION }
-    }
-    val publishedNews = remember {
-        StoreData.newsList.count { it.status == NewsStatus.PUBLISHED }
-    }
-    val totalViews = remember { StoreData.newsList.sumOf { it.views } }
-    val totalEditors = remember {
-        StoreData.userList.count { it.role == UserRole.EDITOR }
-    }
-    val totalReaders = remember {
-        StoreData.userList.count { it.role == UserRole.USER }
-    }
-    val totalCategories = remember { StoreData.categoryList.size }
+    // --- 2. Observasi State dari ViewModel ---
+    val newsList by newsViewModel.newsList.observeAsState(emptyList())
+    val categoryList by categoryViewModel.categoryList.observeAsState(emptyList())
 
-    // --- 2. Data Analitik ---
-    // Note: Karena StoreData.newsList/commentList adalah mutableList (setelah perbaikan sebelumnya),
-    // data analitik ini seharusnya dibungkus dalam remember dengan kunci jika data StoreData sering berubah.
-    // Untuk dummy data yang tidak sering berubah, ini cukup.
-    val categoryViewsMap = remember {
-        StoreData.categoryList.map { category ->
-            val viewsInCategory = StoreData.newsList
-                .filter { it.categoryId == category.id }
-                .sumOf { it.views }
-            category.name to viewsInCategory
-        }.filter { it.second > 0 }
+    // Handling User State (Sealed Class)
+    val userState = userViewModel.userListState.value
+    val userList = remember(userState) {
+        if (userState is UserListState.Success) userState.users else emptyList()
     }
 
-    val topNews = remember { StoreData.newsList.sortedByDescending { it.views }.take(3) }
-
-    val topRatedNews = remember {
-        StoreData.newsList.map { news ->
-            val ratings = StoreData.commentList.filter { it.newsId == news.id }.map { it.rating }
-            val avgRating = if (ratings.isNotEmpty()) ratings.average() else 0.0
-            news to avgRating
-        }.sortedByDescending { it.second }.take(3)
+    // Identifikasi User yang Login
+    val currentUser = remember(loggedInUserId, userList) {
+        userList.find { it.id == loggedInUserId }
     }
 
-    val topEditors = remember {
-        StoreData.userList.filter { it.role == UserRole.EDITOR }.map { editor ->
-            val newsByEditor = StoreData.newsList.filter { it.authorId == editor.id }
-            val ratings = StoreData.commentList.filter { comment ->
-                newsByEditor.any { it.id == comment.newsId }
-            }.map { it.rating }
-            val avg = if (ratings.isNotEmpty()) ratings.average() else 0.0
-            Pair(editor, avg)
-        }.sortedByDescending { it.second }.take(3)
+    // --- 3. Perhitungan Statistik ---
+    val stats by remember(newsList, userList) {
+        derivedStateOf {
+            val pending = newsList.count { it.status == "pending_review" || it.status == "pending_deletion" }
+            val published = newsList.count { it.status == "published" }
+            val totalViews = newsList.sumOf { it.views }
+
+            // Cek role user (Case insensitive)
+            val editors = userList.count { it.role == UserRole.EDITOR || it.role.name.equals("editor", true) }
+            val readers = userList.count { it.role == UserRole.USER || it.role.name.equals("user", true) }
+
+            mapOf(
+                "pending" to pending,
+                "published" to published,
+                "views" to totalViews,
+                "editors" to editors,
+                "readers" to readers
+            )
+        }
     }
 
-    // === LAYOUT UTAMA ===
+    // Data Chart Kategori (Top 5)
+    val categoryViewsMap = remember(categoryList, newsList) {
+        categoryList.map { cat ->
+            val views = newsList.filter { it.categoryId == cat.id }.sumOf { it.views }
+            cat.name to views
+        }.sortedByDescending { it.second }
+            .take(5)
+            .filter { it.second > 0 }
+    }
+
+    // Top News (Most Viewed)
+    val topNews = remember(newsList) {
+        newsList.sortedByDescending { it.views }.take(3)
+    }
+
+    // Top Editors (by Views)
+    val topEditors = remember(userList, newsList) {
+        userList.filter { it.role == UserRole.EDITOR || it.role.name.equals("editor", true) }
+            .map { editor ->
+                val totalViews = newsList.filter { it.authorId == editor.id }.sumOf { it.views }
+                editor to totalViews
+            }
+            .sortedByDescending { it.second }
+            .take(3)
+    }
+
+    // === UI DISPLAY ===
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -107,8 +127,7 @@ fun AdminDashboardScreen() {
 
         // Info Akun
         AccountInfoCard(
-            // � Gunakan currentUser yang sudah dikoleksi
-            fullName = currentUser?.name ?: "Guest Admin",
+            fullName = currentUser?.name ?: "Loading...",
             role = currentUser?.role?.name ?: "Administrator",
             modifier = Modifier.fillMaxWidth()
         )
@@ -121,78 +140,56 @@ fun AdminDashboardScreen() {
                 text = "System Overview",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            // Row 1: Status Berita
+            // Row 1
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 AdminStatCard(
                     modifier = Modifier.weight(1f),
                     label = "Need Review",
-                    count = pendingNews.toString(),
-                    containerColor = StatusPendingBg,
+                    count = stats["pending"].toString(),
+                    containerColor = StatusPendingBg, // Pastikan warna ini ada di Theme.kt atau ganti Color(0xFFFFE0B2)
                     contentColor = StatusPendingText
                 )
                 AdminStatCard(
                     modifier = Modifier.weight(1f),
                     label = "Published",
-                    count = publishedNews.toString(),
-                    containerColor = StatusPublishedBg,
+                    count = stats["published"].toString(),
+                    containerColor = StatusPublishedBg, // Pastikan warna ini ada di Theme.kt atau ganti Color(0xFFC8E6C9)
                     contentColor = StatusPublishedText
                 )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Row 2: Users
+            // Row 2
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 AdminStatCard(
                     modifier = Modifier.weight(1f),
-                    label = "Total Editors",
-                    count = totalEditors.toString(),
+                    label = "Editors",
+                    count = stats["editors"].toString(),
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                     contentColor = MaterialTheme.colorScheme.onTertiaryContainer
                 )
                 AdminStatCard(
                     modifier = Modifier.weight(1f),
-                    label = "Total Readers",
-                    count = totalReaders.toString(),
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Row 3: Engagement
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                AdminStatCard(
-                    modifier = Modifier.weight(1f),
                     label = "Total Views",
-                    count = totalViews.toString(),
+                    count = stats["views"].toString(),
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-                AdminStatCard(
-                    modifier = Modifier.weight(1f),
-                    label = "Categories",
-                    count = totalCategories.toString(),
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             Spacer(modifier = Modifier.height(32.dp))
-            Divider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- SECTION 2: CATEGORY ENGAGEMENT ---
+            // --- SECTION 2: CATEGORY ANALYTICS ---
             Text(
-                text = "Category Engagement",
+                text = "Top Categories by Views",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
@@ -204,7 +201,7 @@ fun AdminDashboardScreen() {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // --- SECTION 3: TOP TRENDING (VIEWS) ---
+            // --- SECTION 3: MOST VIEWED NEWS ---
             SectionHeader(title = "Most Viewed News", icon = Icons.Outlined.Visibility)
             if (topNews.isEmpty()) {
                 Text("No news available.", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -223,33 +220,18 @@ fun AdminDashboardScreen() {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // --- SECTION 4: TOP RATED (RATING) ---
-            SectionHeader(title = "Highest Rated Stories", icon = Icons.Outlined.ThumbUp)
-            if (topRatedNews.isEmpty()) {
-                Text("No ratings yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    topRatedNews.forEachIndexed { index, (news, rating) ->
-                        SimpleRankCard(
-                            rank = index + 1,
-                            title = news.title,
-                            metricValue = String.format("★ %.1f", rating),
-                            metricColor = Color(0xFFFFC107) // Emas
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // --- SECTION 5: TOP EDITORS ---
-            SectionHeader(title = "Top Editors", icon = Icons.Outlined.Person)
+            // --- SECTION 4: TOP PERFORMING EDITORS ---
+            SectionHeader(title = "Top Editors (by Views)", icon = Icons.Outlined.Person)
             if (topEditors.isEmpty()) {
-                Text("No editors data.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("No data available.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     topEditors.forEachIndexed { index, data ->
-                        TopEditorItemCard(rank = index + 1, user = data.first, rating = data.second)
+                        TopEditorItemCard(
+                            rank = index + 1,
+                            user = data.first,
+                            metricLabel = "${data.second} Views"
+                        )
                     }
                 }
             }
@@ -259,12 +241,12 @@ fun AdminDashboardScreen() {
     }
 }
 
-// ------------------------------------------------
-// UI COMPONENTS (TIDAK ADA PERUBAHAN FUNGSIONAL)
-// ------------------------------------------------
+// =========================================================================
+// UI COMPONENTS DEFINITIONS (Tambahkan ini agar error Unresolved hilang)
+// =========================================================================
 
 @Composable
-fun SectionHeader(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+fun SectionHeader(title: String, icon: ImageVector) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 12.dp)) {
         Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         Spacer(modifier = Modifier.width(8.dp))
@@ -364,79 +346,36 @@ fun SimpleRankCard(
 }
 
 @Composable
-fun TopEditorItemCard(rank: Int, user: User, rating: Double) {
-    // Tentukan Warna Editor
-    val bgColor = StatusPendingBg
-    val contentColor = StatusPendingText
-
+fun TopEditorItemCard(rank: Int, user: User, metricLabel: String) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(1.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier
-                .padding(12.dp)
-                .fillMaxWidth(),
+            modifier = Modifier.padding(12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon Rank
             Box(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(bgColor), // Background Biru Pucat
+                    // Jika StatusPendingBg error, ganti dengan Color(0xFFFFE0B2)
+                    .background(StatusPendingBg),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.Person,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = contentColor // Icon Biru Tua
-                )
+                Text(text = "#$rank", fontWeight = FontWeight.Bold, color = StatusPendingText)
             }
-
             Spacer(modifier = Modifier.width(12.dp))
-
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = user.name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = user.email,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Text(text = user.name, fontWeight = FontWeight.SemiBold)
+                Text(text = user.email, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
             }
-
-            // Rating
-            Column(horizontalAlignment = Alignment.End) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = null,
-                        tint = Color(0xFFFFC107),
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = String.format("%.1f", rating),
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                Text(
-                    text = "Avg Rating",
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Text(
+                text = metricLabel,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
@@ -455,6 +394,7 @@ fun SimplePieChart(data: List<Pair<String, Int>>) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceAround
     ) {
+        // Chart Bulat
         Box(modifier = Modifier.size(140.dp), contentAlignment = Alignment.Center) {
             Canvas(modifier = Modifier.size(120.dp)) {
                 var startAngle = -90f
@@ -486,7 +426,7 @@ fun SimplePieChart(data: List<Pair<String, Int>>) {
             }
         }
 
-        // LEGEND SECTION
+        // Legend (Keterangan Warna)
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             data.forEachIndexed { index, pair ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -494,9 +434,8 @@ fun SimplePieChart(data: List<Pair<String, Int>>) {
                         modifier = Modifier
                             .size(12.dp)
                             .clip(CircleShape)
-                            .background(chartColors.getOrElse(index) { Color.Gray }),
-                        contentAlignment = Alignment.Center
-                    ) {} // Blok konten kosong untuk Box
+                            .background(chartColors.getOrElse(index) { Color.Gray })
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
                         Text(
@@ -514,14 +453,5 @@ fun SimplePieChart(data: List<Pair<String, Int>>) {
                 }
             }
         }
-    }
-}
-
-
-@Preview(showBackground = true)
-@Composable
-private fun AdminDashboardPreview() {
-    NewsPolnesTheme {
-        AdminDashboardScreen()
     }
 }
